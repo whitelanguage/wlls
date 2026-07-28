@@ -1,5 +1,5 @@
 // Test: FRONTEND_PROJECT
-// File: tools/wlls/tests/test_project.wl
+// File: tests/test_project.wl
 // Focus: Resolving named, qualified, and star imports across open source files.
 
 import "builtin"

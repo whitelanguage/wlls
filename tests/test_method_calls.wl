@@ -1,5 +1,5 @@
 // Test: WLLS_METHOD_CALLS
-// File: tools/wlls/tests/test_method_calls.wl
+// File: tests/test_method_calls.wl
 // Focus: Semantic indexing of member calls on parameters and local variables.
 
 import "builtin"

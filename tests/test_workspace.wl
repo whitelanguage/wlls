@@ -1,5 +1,5 @@
 // Test: WLLS_WORKSPACE
-// File: tools/wlls/tests/test_workspace.wl
+// File: tests/test_workspace.wl
 // Focus: wlls document lifecycle and version updates.
 import "builtin"
 import "../internal/workspace/_pkg.wl" as workspace

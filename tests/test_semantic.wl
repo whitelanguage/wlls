@@ -1,5 +1,5 @@
 // Test: SEMANTIC_DEFINITION
-// File: tools/wlls/tests/test_semantic.wl
+// File: tests/test_semantic.wl
 // Focus: Resolving local and top-level references without lowering LLVM IR.
 
 import "builtin"

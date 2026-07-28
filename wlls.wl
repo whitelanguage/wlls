@@ -1,4 +1,4 @@
-// tools/wlls/wlls.wl
+// wlls.wl
 import "builtin"
 import "internal/server/_pkg.wl" as server
 

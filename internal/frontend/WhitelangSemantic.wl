@@ -1,9 +1,9 @@
 import Dict from "dict"
 import * from "WhitelangFrontend.wl"
-import * from "../../../../src/core/WhitelangNodes.wl"
-import "../../../../src/core/WhitelangTokens.wl"
-import Token from "../../../../src/core/WhitelangTokens.wl"
-import "../../../../src/core/WhitelangExceptions.wl"
+import * from "../../vendor/wlc-frontend/WhitelangNodes.wl"
+import "../../vendor/wlc-frontend/WhitelangTokens.wl"
+import Token from "../../vendor/wlc-frontend/WhitelangTokens.wl"
+import "../../vendor/wlc-frontend/WhitelangExceptions.wl"
 
 class SymbolDefinition {
     let name -> String;

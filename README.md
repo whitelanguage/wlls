@@ -42,17 +42,17 @@ wlls --help
 Build from the root of the White Language repository:
 
 ```sh
-wlc tools/wlls/wlls.wl -o wlls
+wlc wlls.wl -o wlls
 ```
 
 On Windows:
 
 ```sh
-wlc tools/wlls/wlls.wl -o wlls.exe
+wlc wlls.wl -o wlls.exe
 ```
 
 The server is kept in the compiler repository because it directly reuses the compiler frontend. Changes to White Language syntax should be made in the compiler, not reimplemented inside `wlls`.
 
 ## License
 
-wlls is licensed under the [Apache License 2.0](../../LICENSE), the same license as White Language.
+wlls is licensed under the [Apache License 2.0](LICENSE), the same license as White Language.

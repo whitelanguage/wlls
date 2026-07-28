@@ -2,8 +2,8 @@ import Dict from "dict"
 import * from "WhitelangFrontend.wl"
 import * from "WhitelangSemantic.wl"
 import * from "WhitelangAnalysis.wl"
-import * from "../../../../src/core/WhitelangNodes.wl"
-import "../../../../src/core/WhitelangTokens.wl"
+import * from "../../vendor/wlc-frontend/WhitelangNodes.wl"
+import "../../vendor/wlc-frontend/WhitelangTokens.wl"
 
 class WorkspaceSource {
     let path -> String;

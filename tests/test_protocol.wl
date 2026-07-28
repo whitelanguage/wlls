@@ -1,5 +1,5 @@
 // Test: WLLS_PROTOCOL
-// File: tools/wlls/tests/test_protocol.wl
+// File: tests/test_protocol.wl
 // Focus: wlls handshake, document synchronization, and symbol requests.
 import "builtin"
 import "../internal/server/_pkg.wl" as server

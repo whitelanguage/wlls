@@ -3,22 +3,18 @@ import "../protocol/_pkg.wl" as protocol
 import "../frontend/_pkg.wl" as source
 import "../compiler/_pkg.wl" as compiler
 
-func symbol_kind(kind -> Int) -> String {
-    if (kind == source.SYMBOL_FUNCTION) { return "function"; }
-    if (kind == source.SYMBOL_VARIABLE) { return "variable"; }
-    if (kind == source.SYMBOL_CONSTANT) { return "constant"; }
-    if (kind == source.SYMBOL_STRUCT) { return "struct"; }
-    if (kind == source.SYMBOL_CLASS) { return "class"; }
-    if (kind == source.SYMBOL_METHOD) { return "method"; }
-    if (kind == source.SYMBOL_FIELD) { return "field"; }
-    if (kind == source.SYMBOL_ENUM) { return "enum"; }
-    if (kind == source.SYMBOL_ENUM_CASE) { return "enumCase"; }
-    if (kind == source.SYMBOL_INTERFACE) { return "interface"; }
-    if (kind == source.SYMBOL_ERROR) { return "error"; }
-    if (kind == source.SYMBOL_ERROR_CASE) { return "errorCase"; }
-    if (kind == source.SYMBOL_CONVERSION) { return "conversion"; }
-    if (kind == source.SYMBOL_PARAMETER) { return "parameter"; }
-    return "unknown";
+func symbol_kind(kind -> Int) -> Int {
+    if (kind == source.SYMBOL_FUNCTION) { return 12; }
+    if (kind == source.SYMBOL_VARIABLE || kind == source.SYMBOL_PARAMETER) { return 13; }
+    if (kind == source.SYMBOL_CONSTANT) { return 14; }
+    if (kind == source.SYMBOL_STRUCT) { return 23; }
+    if (kind == source.SYMBOL_CLASS) { return 5; }
+    if (kind == source.SYMBOL_METHOD || kind == source.SYMBOL_CONVERSION) { return 6; }
+    if (kind == source.SYMBOL_FIELD) { return 8; }
+    if (kind == source.SYMBOL_ENUM || kind == source.SYMBOL_ERROR) { return 10; }
+    if (kind == source.SYMBOL_ENUM_CASE || kind == source.SYMBOL_ERROR_CASE) { return 22; }
+    if (kind == source.SYMBOL_INTERFACE) { return 11; }
+    return 13;
 }
 
 func encode_symbols(symbols -> Vector(Struct)) -> String {
@@ -30,8 +26,12 @@ func encode_symbols(symbols -> Vector(Struct)) -> String {
         if (i > 0) { result += ","; }
         result +=
             "{\"name\":" + protocol.quote(symbol.name) +
-            ",\"kind\":" + protocol.quote(symbol_kind(symbol.kind)) +
+            ",\"kind\":" + symbol_kind(symbol.kind) +
             ",\"range\":{\"start\":{\"line\":" + span.start.line +
+            ",\"character\":" + span.start.utf16_column +
+            "},\"end\":{\"line\":" + span.end.line +
+            ",\"character\":" + span.end.utf16_column +
+            "}},\"selectionRange\":{\"start\":{\"line\":" + span.start.line +
             ",\"character\":" + span.start.utf16_column +
             "},\"end\":{\"line\":" + span.end.line +
             ",\"character\":" + span.end.utf16_column +

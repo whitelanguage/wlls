@@ -2,11 +2,11 @@
 import "../protocol/_pkg.wl" as protocol
 import "../compiler/_pkg.wl" as compiler
 
-func diagnostic_severity(value -> Int) -> String {
-    if (value == compiler.WhitelangExceptions.DIAGNOSTIC_WARNING) { return "warning"; }
-    if (value == compiler.WhitelangExceptions.DIAGNOSTIC_INFO) { return "information"; }
-    if (value == compiler.WhitelangExceptions.DIAGNOSTIC_HINT) { return "hint"; }
-    return "error";
+func diagnostic_severity(value -> Int) -> Int {
+    if (value == compiler.WhitelangExceptions.DIAGNOSTIC_WARNING) { return 2; }
+    if (value == compiler.WhitelangExceptions.DIAGNOSTIC_INFO) { return 3; }
+    if (value == compiler.WhitelangExceptions.DIAGNOSTIC_HINT) { return 4; }
+    return 1;
 }
 
 func encode_diagnostics(items -> Vector(Struct)) -> String {
@@ -17,9 +17,9 @@ func encode_diagnostics(items -> Vector(Struct)) -> String {
         let range -> compiler.WhitelangExceptions.SourceRange = item.range;
         if (i > 0) { result += ","; }
         result +=
-            "{\"severity\":" + protocol.quote(diagnostic_severity(item.severity)) +
+            "{\"severity\":" + diagnostic_severity(item.severity) +
             ",\"code\":" + protocol.quote(item.code) +
-            ",\"category\":" + protocol.quote(item.category) +
+            ",\"source\":\"wlls\"" +
             ",\"message\":" + protocol.quote(item.message) +
             ",\"range\":{\"start\":{\"line\":" + range.start.line +
             ",\"character\":" + range.start.utf16_column +

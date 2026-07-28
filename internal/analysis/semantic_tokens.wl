@@ -400,11 +400,35 @@ func semantic_tokens(
     return tokens;
 }
 
-func __json_modifiers(modifiers -> Vector(String)) -> json.Value? {
-    let result -> json.Value = json.array();
+func __token_type_index(token_type -> String) -> Int {
+    if (token_type == "keyword") { return 0; }
+    if (token_type == "type") { return 1; }
+    if (token_type == "class") { return 2; }
+    if (token_type == "struct") { return 3; }
+    if (token_type == "interface") { return 4; }
+    if (token_type == "enum") { return 5; }
+    if (token_type == "enumMember") { return 6; }
+    if (token_type == "function") { return 7; }
+    if (token_type == "method") { return 8; }
+    if (token_type == "parameter") { return 9; }
+    if (token_type == "variable") { return 10; }
+    if (token_type == "property") { return 11; }
+    if (token_type == "string") { return 12; }
+    if (token_type == "number") { return 13; }
+    if (token_type == "comment") { return 14; }
+    if (token_type == "operator") { return 15; }
+    return 16;
+}
+
+func __modifier_bits(modifiers -> Vector(String)) -> Int {
+    let result -> Int = 0;
     let i -> Int = 0;
     while (i < modifiers.length()) {
-        result.append(json.string(modifiers[i])?)?;
+        if (modifiers[i] == "declaration") { result |= 1; }
+        else if (modifiers[i] == "definition") { result |= 2; }
+        else if (modifiers[i] == "readonly") { result |= 4; }
+        else if (modifiers[i] == "static") { result |= 8; }
+        else if (modifiers[i] == "defaultLibrary") { result |= 16; }
         i += 1;
     }
     return result;
@@ -413,24 +437,31 @@ func __json_modifiers(modifiers -> Vector(String)) -> json.Value? {
 func __encode_semantic_tokens(tokens -> Vector(Struct)) -> String? {
     let result -> json.Value = json.array();
     let i -> Int = 0;
+    let previous_line -> Int = 0;
+    let previous_character -> Int = 0;
     while (i < tokens.length()) {
         let token -> SemanticToken = tokens[i];
-        let encoded -> json.Value = json.object();
-        encoded.set("line", json.integer(Long(token.line))?)?;
-        encoded.set("character", json.integer(Long(token.character))?)?;
-        encoded.set("length", json.integer(Long(token.length))?)?;
-        encoded.set("type", json.string(token.token_type)?)?;
-        encoded.set("modifiers", __json_modifiers(token.modifiers)?)?;
-        result.append(encoded)?;
+        let delta_line -> Int = token.line - previous_line;
+        let delta_start -> Int = token.character;
+        if (delta_line == 0) { delta_start -= previous_character; }
+        result.append(json.integer(Long(delta_line))?)?;
+        result.append(json.integer(Long(delta_start))?)?;
+        result.append(json.integer(Long(token.length))?)?;
+        result.append(json.integer(Long(__token_type_index(token.token_type)))?)?;
+        result.append(json.integer(Long(__modifier_bits(token.modifiers)))?)?;
+        previous_line = token.line;
+        previous_character = token.character;
         i += 1;
     }
-    return json.encode(result)?;
+    let response -> json.Value = json.object();
+    response.set("data", result)?;
+    return json.encode(response)?;
 }
 
 func encode_semantic_tokens(tokens -> Vector(Struct)) -> String {
     let encoded -> String = __encode_semantic_tokens(tokens)?;
     catch(err) {
-        return "[]";
+        return "{\"data\":[]}";
     }
     return encoded;
 }

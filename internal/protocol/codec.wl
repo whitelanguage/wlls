@@ -31,6 +31,30 @@ class Request {
         catch(err) { return null; }
         return value;
     }
+
+    method object(name -> String) -> Request {
+        let field -> json.Value = self.root.find(name);
+        if (field is null || field.kind() != json.Kind.Object) { return null; }
+        return Request(field);
+    }
+
+    method array(name -> String) -> json.Value {
+        let field -> json.Value = self.root.find(name);
+        if (field is null || field.kind() != json.Kind.Array) { return null; }
+        return field;
+    }
+
+    method raw(name -> String, fallback -> String) -> String {
+        let field -> json.Value = self.root.find(name);
+        if (field is null) { return fallback; }
+        let encoded -> String = json.encode(field)?;
+        catch(err) { return fallback; }
+        return encoded;
+    }
+
+    method contains(name -> String) -> Bool {
+        return self.root.contains(name);
+    }
 }
 
 func decode_request(message -> String) -> Request? {

@@ -6,8 +6,9 @@ import "../compiler/_pkg.wl" as compiler
 func encode_definition(definition -> source.SymbolDefinition) -> String {
     if (definition is null || definition.range is null) { return "null"; }
     let range -> compiler.WhitelangExceptions.SourceRange = definition.range;
+    let uri -> String = protocol.path_to_uri(range.file);
     return
-        "{\"path\":" + protocol.quote(range.file) +
+        "{\"uri\":" + protocol.quote(uri) +
         ",\"range\":{\"start\":{\"line\":" + range.start.line +
         ",\"character\":" + range.start.utf16_column +
         "},\"end\":{\"line\":" + range.end.line +

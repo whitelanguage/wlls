@@ -1,45 +1,28 @@
-# wlls (White Lang Language Server)
+# wlls
 
-`wlls` is the language server for White Language.
+`wlls` is the White Language language server. 
 
-It uses the same lexer, parser, syntax tree, and diagnostics implementation as the White Language compiler. There is no separate editor grammar to keep in sync with the compiler.
-
-## What it does
-
-The server currently provides:
+Currently, it supports:
 
 - syntax diagnostics
 - document symbols
 - go to definition
-- semantic tokens
-- in-memory document updates
+- semantic highlighting
+- full-text document synchronization
 
-`wlls` is used by editor extensions to understand White Lang code.
+For the current method matrix and capability scope, see [docs/protocol.md](docs/protocol.md).
 
-## Usage
+## Running
 
-Start the server over standard input and output:
+Launch via your LSP client over stdio:
 
 ```sh
 wlls --stdio
 ```
 
-Editors normally start this process themselves. Messages use protocol version
-1 and are framed with a `Content-Length` header. A client must first send
-`initialize`, then open documents before requesting diagnostics, symbols,
-definitions, or semantic tokens.
-
-See [Writing an editor client](docs/protocol.md) for the request format and plugin lifecycle.
-
-Run the following command to see the available command-line options:
-
-```sh
-wlls --help
-```
-
 ## Building
 
-Build from the root of the White Language repository:
+Build from this repo with an White Language toolchain:
 
 ```sh
 wlc wlls.wl -o wlls
@@ -47,12 +30,13 @@ wlc wlls.wl -o wlls
 
 On Windows:
 
-```sh
+```powershell
 wlc wlls.wl -o wlls.exe
 ```
 
-The server is kept in the compiler repository because it directly reuses the compiler frontend. Changes to White Language syntax should be made in the compiler, not reimplemented inside `wlls`.
+The compiler frontend snapshot used by the server is kept in `vendor/wlc-frontend`. Its source revision is recorded in `vendor/wlc-frontend/REVISION`. Syntax changes belong in the White Language compiler repository and are copied here after they have landed there.
 
 ## License
 
-wlls is licensed under the [Apache License 2.0](LICENSE), the same license as White Language.
+`wlls` is licensed under the [Apache License 2.0](LICENSE), the same license as
+White Language.

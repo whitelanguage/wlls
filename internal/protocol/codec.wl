@@ -55,6 +55,12 @@ class Request {
     method contains(name -> String) -> Bool {
         return self.root.contains(name);
     }
+
+    method valid_id() -> Bool {
+        let field -> json.Value = self.root.find("id");
+        if (field is null || field.kind() == json.Kind.Null) { return true; }
+        return field.kind() == json.Kind.Text || field.kind() == json.Kind.Number;
+    }
 }
 
 func decode_request(message -> String) -> Request? {

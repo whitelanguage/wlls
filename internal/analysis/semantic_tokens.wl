@@ -1,8 +1,8 @@
 // semantic token collection and protocol encoding
 import Dict from "dict"
-import "json"
 import "../frontend/_pkg.wl" as source
 import "../compiler/_pkg.wl" as compiler
+import "../protocol/_pkg.wl" as protocol
 
 class SemanticToken {
     let line -> Int;
@@ -434,8 +434,11 @@ func __modifier_bits(modifiers -> Vector(String)) -> Int {
     return result;
 }
 
-func __encode_semantic_tokens(tokens -> Vector(Struct)) -> String? {
-    let result -> json.Value = json.array();
+func encode_semantic_tokens(tokens -> Vector(Struct)) -> String {
+    let initial_capacity -> Int = 16;
+    if (tokens.length() <= (protocol.MAX_BUFFER_CAPACITY - 16) / 12) { initial_capacity = tokens.length() * 12 + 16; }
+    let output -> protocol.ByteBuffer = protocol.ByteBuffer(initial_capacity);
+    if (!output.write("{\"data\":[")) { return "{\"data\":[]}"; }
     let i -> Int = 0;
     let previous_line -> Int = 0;
     let previous_character -> Int = 0;
@@ -444,24 +447,14 @@ func __encode_semantic_tokens(tokens -> Vector(Struct)) -> String? {
         let delta_line -> Int = token.line - previous_line;
         let delta_start -> Int = token.character;
         if (delta_line == 0) { delta_start -= previous_character; }
-        result.append(json.integer(Long(delta_line))?)?;
-        result.append(json.integer(Long(delta_start))?)?;
-        result.append(json.integer(Long(token.length))?)?;
-        result.append(json.integer(Long(__token_type_index(token.token_type)))?)?;
-        result.append(json.integer(Long(__modifier_bits(token.modifiers)))?)?;
+        if (i > 0 && !output.write_byte(Byte(44))) { return "{\"data\":[]}"; }
+        if (!output.write_uint(delta_line) || !output.write_byte(Byte(44)) || !output.write_uint(delta_start) || !output.write_byte(Byte(44)) || !output.write_uint(token.length) || !output.write_byte(Byte(44)) || !output.write_uint(__token_type_index(token.token_type)) || !output.write_byte(Byte(44)) || !output.write_uint(__modifier_bits(token.modifiers))) { return "{\"data\":[]}"; }
         previous_line = token.line;
         previous_character = token.character;
         i += 1;
     }
-    let response -> json.Value = json.object();
-    response.set("data", result)?;
-    return json.encode(response)?;
-}
-
-func encode_semantic_tokens(tokens -> Vector(Struct)) -> String {
-    let encoded -> String = __encode_semantic_tokens(tokens)?;
-    catch(err) {
-        return "{\"data\":[]}";
-    }
-    return encoded;
+    if (!output.write("]}")) { return "{\"data\":[]}"; }
+    let result -> String = output.finish();
+    if (result is null) { return "{\"data\":[]}"; }
+    return result;
 }

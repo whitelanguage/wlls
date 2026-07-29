@@ -19,34 +19,52 @@ func __hex_digit(value -> Byte) -> Int {
 }
 
 func uri_to_path(uri -> String) -> String {
-    if (uri is null || !uri.starts_with("file://")) { return uri; }
+    if (uri is null || !uri.starts_with("file://")) { return null; }
     let start -> Int = 7;
-    if (start < uri.length() && uri[start] == '/' && start + 2 < uri.length() && uri[start + 2] == ':') { start += 1; }
-    let result -> String = wl_alloc_string(Long(uri.length() - start));
+    let unc -> Bool = false;
+    if (start >= uri.length()) { return null; }
+    if (uri[start] != '/') {
+        let authority_end -> Int = start;
+        while (authority_end < uri.length() && uri[authority_end] != '/') { authority_end += 1; }
+        if (authority_end == uri.length()) { return null; }
+        let authority -> String = uri.slice(start, authority_end);
+        if (authority == "localhost") { start = authority_end; }
+        else { unc = true; }
+    } else if (start + 2 < uri.length() && uri[start + 2] == ':') {
+        start += 1;
+    }
+    let result -> String = wl_alloc_string(Long(uri.length() - start + 2));
     if (result is null) { return null; }
     let ptr output -> Byte = __string_data(result);
     let i -> Int = start;
     let written -> Int = 0;
+    if (unc) {
+        output[written] = Byte(47);
+        output[written + 1] = Byte(47);
+        written += 2;
+    }
     while (i < uri.length()) {
+        if (uri[i] == '?' || uri[i] == '#') { return null; }
         if (uri[i] == '%' && i + 2 < uri.length()) {
             let high -> Int = __hex_digit(uri[i + 1]);
             let low -> Int = __hex_digit(uri[i + 2]);
-            if (high >= 0 && low >= 0) {
-                output[written] = Byte((high << 4) | low);
-                written += 1;
-                i += 3;
-            } else {
-                output[written] = uri[i];
-                written += 1;
-                i += 1;
-            }
+            if (high < 0 || low < 0) { return null; }
+            let decoded -> Int = (high << 4) | low;
+            if (decoded == 0) { return null; }
+            output[written] = Byte(decoded);
+            written += 1;
+            i += 3;
+        } else if (uri[i] == '%') {
+            return null;
         } else {
             output[written] = uri[i];
             written += 1;
             i += 1;
         }
     }
+    if (!unc && written > 1 && output[1] == Byte(58) && output[0] >= Byte(97) && output[0] <= Byte(122)) { output[0] = Byte(Int(output[0]) - 32); }
     wl_string_set_length(result, written);
+    if (!result.is_valid_utf8()) { return null; }
     return result;
 }
 
@@ -74,11 +92,13 @@ func path_to_uri(path -> String) -> String {
         written += 1;
         prefix_index += 1;
     }
-    if (path.length() == 0 || path[0] != '/') {
+    let unc -> Bool = path.length() > 1 && (path[0] == '/' || path[0] == '\\') && (path[1] == '/' || path[1] == '\\');
+    if (!unc && (path.length() == 0 || path[0] != '/')) {
         output[written] = Byte(47);
         written += 1;
     }
     let i -> Int = 0;
+    if (unc) { i = 2; }
     while (i < path.length()) {
         let value -> Byte = path[i];
         if (value == '\\') {

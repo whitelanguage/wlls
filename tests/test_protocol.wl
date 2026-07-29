@@ -11,6 +11,16 @@ func main() -> Int {
         builtin.print("FAIL: malformed JSON");
         return 1;
     }
+    response = service.handle("[]");
+    if (response != "{\"jsonrpc\":\"2.0\",\"id\":null,\"error\":{\"code\":-32600,\"message\":\"Invalid JSON-RPC request.\"}}") {
+        builtin.print("FAIL: invalid request root");
+        return 1;
+    }
+    response = service.handle("{\"jsonrpc\":\"2.0\",\"id\":true,\"method\":\"initialize\",\"params\":{}}");
+    if (response != "{\"jsonrpc\":\"2.0\",\"id\":null,\"error\":{\"code\":-32600,\"message\":\"Request id must be a string, number, or null.\"}}") {
+        builtin.print("FAIL: invalid request id");
+        return 1;
+    }
 
     response = service.handle("{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{\"capabilities\":{}}}");
     if (!response.starts_with("{\"jsonrpc\":\"2.0\",\"id\":1,\"result\":{\"capabilities\":")) {
@@ -20,6 +30,11 @@ func main() -> Int {
     response = service.handle("{\"jsonrpc\":\"2.0\",\"method\":\"initialized\",\"params\":{}}");
     if (response != "") {
         builtin.print("FAIL: initialized notification");
+        return 1;
+    }
+    response = service.handle("{\"jsonrpc\":\"2.0\",\"id\":99,\"method\":\"workspace/unknown\"}");
+    if (response != "{\"jsonrpc\":\"2.0\",\"id\":99,\"error\":{\"code\":-32601,\"message\":\"Method not found: workspace/unknown\"}}") {
+        builtin.print("FAIL: unknown method");
         return 1;
     }
 
@@ -44,6 +59,11 @@ func main() -> Int {
     response = service.handle("{\"jsonrpc\":\"2.0\",\"method\":\"textDocument/didChange\",\"params\":{\"textDocument\":{\"uri\":\"file:///memory.wl\",\"version\":3},\"contentChanges\":[{\"text\":\"const BASE -> Int = 1; func main() -> Int { return BASE; }\"}]}}");
     if (!response.ends_with("\"diagnostics\":[]}}")) {
         builtin.print("FAIL: diagnostic recovery");
+        return 1;
+    }
+    response = service.handle("{\"jsonrpc\":\"2.0\",\"method\":\"textDocument/didChange\",\"params\":{\"textDocument\":{\"uri\":\"file:///memory.wl\",\"version\":3},\"contentChanges\":[{\"text\":\"func stale( -> Int {\"}]}}");
+    if (response != "" || service.workspace.find("/memory.wl").text.starts_with("func stale")) {
+        builtin.print("FAIL: stale document version");
         return 1;
     }
 

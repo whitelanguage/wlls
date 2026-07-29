@@ -19,6 +19,18 @@ func main() -> Int {
         return 1;
     }
 
+    let unc_path -> String = "//server/share/White Language/main.wl";
+    let unc_uri -> String = "file://server/share/White%20Language/main.wl";
+    if (protocol.path_to_uri(unc_path) != unc_uri || protocol.uri_to_path(unc_uri) != unc_path) {
+        builtin.print("FAIL: UNC file URI");
+        return 1;
+    }
+
+    if (protocol.uri_to_path("file://localhost/tmp/main.wl") != "/tmp/main.wl" || protocol.uri_to_path("https://example.com/main.wl") is !null || protocol.uri_to_path("file:///tmp/bad%2.wl") is !null || protocol.uri_to_path("file:///tmp/bad%XZ.wl") is !null || protocol.uri_to_path("file:///tmp/bad%FF.wl") is !null) {
+        builtin.print("FAIL: invalid file URI");
+        return 1;
+    }
+
     builtin.print("PASS: LSP file URI");
     return 0;
 }

@@ -41,8 +41,11 @@ class Server {
     }
 
     method handle(message -> String) -> String {
-        let request -> protocol.Request = protocol.decode_request(message)?;
+        let root -> json.Value = json.decode(message)?;
         catch(err) { return self.error_response("null", -32700, "Invalid JSON."); }
+        if (root.kind() != json.Kind.Object) { return self.error_response("null", -32600, "Invalid JSON-RPC request."); }
+        let request -> protocol.Request = protocol.Request(root);
+        if (!request.valid_id()) { return self.error_response("null", -32600, "Request id must be a string, number, or null."); }
 
         let id -> String = request.raw("id", "null");
         let has_id -> Bool = request.contains("id");
@@ -68,6 +71,8 @@ class Server {
             return self.response(id, "null");
         }
         if (self.shutdown_requested) { return self.request_error(has_id, id, -32600, "The server is shutting down."); }
+        let document_method -> Bool = method_name == "textDocument/didOpen" || method_name == "textDocument/didChange" || method_name == "textDocument/didClose" || method_name == "textDocument/documentSymbol" || method_name == "textDocument/definition" || method_name == "textDocument/semanticTokens/full";
+        if (!document_method) { return self.request_error(has_id, id, -32601, "Method not found: " + method_name); }
 
         let params -> protocol.Request = request.object("params");
         if (params is null) { return self.request_error(has_id, id, -32602, "Request parameters are missing."); }
@@ -81,6 +86,8 @@ class Server {
             let text -> String = text_document.string("text");
             let version -> Int = text_document.int("version", 0);
             if (text is null) { return ""; }
+            let current -> workspace.Document = self.workspace.find(path);
+            if (current is !null && version <= current.version) { return ""; }
             let document -> workspace.Document = self.workspace.open(path, version, text);
             return self.publish_diagnostics(document);
         }
@@ -96,7 +103,7 @@ class Server {
             let text -> String = change.string("text");
             let version -> Int = text_document.int("version", 0);
             let current -> workspace.Document = self.workspace.find(path);
-            if (text is null || (current is !null && version < current.version)) { return ""; }
+            if (text is null || (current is !null && version <= current.version)) { return ""; }
             let document -> workspace.Document = self.workspace.open(path, version, text);
             return self.publish_diagnostics(document);
         }
@@ -108,6 +115,7 @@ class Server {
         let document -> workspace.Document = self.workspace.find(path);
         if (document is null) { return self.request_error(has_id, id, -32602, "Document is not open."); }
         let checked -> source.FrontendResult = document.result;
+        if (!has_id) { return ""; }
 
         if (method_name == "textDocument/documentSymbol") {
             if (!checked.valid) { return self.response(id, "[]"); }
@@ -133,9 +141,9 @@ class Server {
 func run() -> Int? {
     let server -> Server = Server();
     while (!server.exit_received) {
-        let message -> String = protocol.read_message()?;
-        if (message.length() == 0) { return 0; }
-        let response -> String = server.handle(message);
+        let message -> protocol.Message = protocol.read_message()?;
+        if (message.closed) { return 0; }
+        let response -> String = server.handle(message.body);
         if (response.length() > 0) { protocol.write_message(response)?; }
     }
     if (server.shutdown_requested) { return 0; }

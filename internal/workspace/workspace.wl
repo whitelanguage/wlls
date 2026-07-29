@@ -31,16 +31,17 @@ class Workspace {
     }
 
     method find(path -> String) -> Document {
-        return self.documents[path];
+        return self.documents[source.normalize_source_path(path)];
     }
 
     method open(path -> String, version -> Int, text -> String) -> Document {
-        let result -> source.FrontendResult =
-            self.frontend.update(path, version, text);
-        let document -> Document = self.find(path);
+        let normalized -> String = source.normalize_source_path(path);
+        let document -> Document = self.find(normalized);
+        if (document is !null && version <= document.version) { return document; }
+        let result -> source.FrontendResult = self.frontend.update(normalized, version, text);
         if (document is null) {
-            document = Document(path, version, text, result);
-            self.documents.put(path, document);
+            document = Document(normalized, version, text, result);
+            self.documents.put(normalized, document);
         } else {
             document.version = version;
             document.text = text;
@@ -50,9 +51,10 @@ class Workspace {
     }
 
     method close(path -> String) -> Bool {
-        if (!self.documents.contains_key(path)) { return false; }
-        self.documents.remove(path);
-        self.frontend.remove(path);
+        let normalized -> String = source.normalize_source_path(path);
+        if (!self.documents.contains_key(normalized)) { return false; }
+        self.documents.remove(normalized);
+        self.frontend.remove(normalized);
         return true;
     }
 }

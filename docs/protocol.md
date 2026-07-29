@@ -6,8 +6,7 @@
 wlls --stdio
 ```
 
-Messages use JSON-RPC 2.0 and the standard `Content-Length` framing defined by LSP. Protocol traffic is written only to stdout. Treat stderr as a separate log
-stream.
+Messages use JSON-RPC 2.0 and the standard `Content-Length` framing defined by LSP. Protocol traffic is written only to stdout. Treat stderr as a separate log stream. A frame body is limited to 64 MiB and its headers to 8 KiB; malformed, duplicate, or overflowing `Content-Length` fields close the session.
 
 Use an existing LSP client library whenever the editor has one. The server does not require a White Language-specific transport adapter.
 
@@ -39,7 +38,7 @@ A client follows the standard LSP flow:
 
 `textDocument/didOpen`, `didChange`, `didClose`, `initialized`, and `exit` are notifications and don't expect responses. Syntax diagnostics are published via `textDocument/publishDiagnostics` after an open or accepted full-text change. Closing a document clears the diagnostics out.
 
-Document identifiers are standard `file` URIs. Versions must bump up as the document changes. The server will ignore an older full-text update rather than overwrite a newer in-memory document.
+Document identifiers are standard `file` URIs. Local, Windows drive, and UNC paths are supported. Versions must increase as the document changes. The server ignores an older or duplicate full-text update rather than overwriting a newer in-memory document.
 
 ## Supported requests
 

@@ -17,26 +17,23 @@ func symbol_kind(kind -> Int) -> Int {
     return 13;
 }
 
-func encode_symbols(symbols -> Vector(Struct)) -> String {
-    let result -> String = "[";
+func __write_symbols(output -> protocol.ByteBuffer, symbols -> Vector(Struct)) -> Bool {
+    if (!output.write("[")) { return false; }
     let i -> Int = 0;
     while (i < symbols.length()) {
         let symbol -> source.DocumentSymbol = symbols[i];
         let span -> compiler.WhitelangExceptions.SourceRange = symbol.span;
-        if (i > 0) { result += ","; }
-        result +=
-            "{\"name\":" + protocol.quote(symbol.name) +
-            ",\"kind\":" + symbol_kind(symbol.kind) +
-            ",\"range\":{\"start\":{\"line\":" + span.start.line +
-            ",\"character\":" + span.start.utf16_column +
-            "},\"end\":{\"line\":" + span.end.line +
-            ",\"character\":" + span.end.utf16_column +
-            "}},\"selectionRange\":{\"start\":{\"line\":" + span.start.line +
-            ",\"character\":" + span.start.utf16_column +
-            "},\"end\":{\"line\":" + span.end.line +
-            ",\"character\":" + span.end.utf16_column +
-            "}},\"children\":" + encode_symbols(symbol.children) + "}";
+        if (i > 0 && !output.write_byte(Byte(44))) { return false; }
+        if (!output.write("{\"name\":") || !output.write(protocol.quote(symbol.name)) || !output.write(",\"kind\":") || !output.write_uint(symbol_kind(symbol.kind)) || !output.write(",\"range\":{\"start\":{\"line\":") || !output.write_uint(span.start.line) || !output.write(",\"character\":") || !output.write_uint(span.start.utf16_column) || !output.write("},\"end\":{\"line\":") || !output.write_uint(span.end.line) || !output.write(",\"character\":") || !output.write_uint(span.end.utf16_column) || !output.write("}},\"selectionRange\":{\"start\":{\"line\":") || !output.write_uint(span.start.line) || !output.write(",\"character\":") || !output.write_uint(span.start.utf16_column) || !output.write("},\"end\":{\"line\":") || !output.write_uint(span.end.line) || !output.write(",\"character\":") || !output.write_uint(span.end.utf16_column) || !output.write("}},\"children\":") || !__write_symbols(output, symbol.children) || !output.write("}")) { return false; }
         i += 1;
     }
-    return result + "]";
+    return output.write("]");
+}
+
+func encode_symbols(symbols -> Vector(Struct)) -> String {
+    let output -> protocol.ByteBuffer = protocol.ByteBuffer(1024);
+    if (!__write_symbols(output, symbols)) { return "[]"; }
+    let result -> String = output.finish();
+    if (result is null) { return "[]"; }
+    return result;
 }

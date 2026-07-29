@@ -31,6 +31,7 @@ func source_dir(path -> String) -> String {
 func normalize_source_path(path -> String) -> String {
     let absolute -> Bool =
         path.length() > 0 && (path[0] == '/' || path[0] == '\\');
+    let unc -> Bool = path.length() > 1 && (path[0] == '/' || path[0] == '\\') && (path[1] == '/' || path[1] == '\\');
     let parts -> Vector(String) = [];
     let start -> Int = 0;
     let i -> Int = 0;
@@ -71,7 +72,8 @@ func normalize_source_path(path -> String) -> String {
     }
 
     let result -> String = "";
-    if (absolute) { result = "/"; }
+    if (unc) { result = "//"; }
+    else if (absolute) { result = "/"; }
     i = 0;
     while (i < normalized.length()) {
         result += normalized[i];
@@ -375,49 +377,6 @@ class FrontendWorkspace {
         return null;
     }
 
-    method __resolve_members() -> Void {
-        let i -> Int = 0;
-        while (i < self.sources.length()) {
-            let source -> WorkspaceSource = self.sources[i];
-            if (source.result is !null &&
-                source.result.valid &&
-                source.result.semantics is !null) {
-                let references -> Vector(Struct) =
-                    source.result.semantics.references;
-                let j -> Int = 0;
-                while (j < references.length()) {
-                    let reference -> SymbolReference = references[j];
-                    if (reference.receiver is !null &&
-                        reference.receiver.definition is !null) {
-                        let receiver_type -> String =
-                            reference.receiver.definition.type_name;
-                        if (receiver_type.length() > 0) {
-                            receiver_type = self.__apply_type_steps(receiver_type, reference.receiver_steps);
-                            reference.owner_type = self.__member_owner(receiver_type);
-                        }
-                    }
-                    if (reference.owner_type.length() > 0) {
-                        let local -> Bool =
-                            reference.definition is !null &&
-                            reference.definition.range is !null &&
-                            reference.definition.range.file == source.path;
-                        if (!local) {
-                            let resolve_path -> String = source.path;
-                            if (reference.receiver is !null && reference.receiver.definition is !null && reference.receiver.definition.range is !null) { resolve_path = reference.receiver.definition.range.file; }
-                            reference.definition = self.resolve_member(
-                                resolve_path,
-                                reference.owner_type,
-                                reference.name
-                            );
-                        }
-                    }
-                    j += 1;
-                }
-            }
-            i += 1;
-        }
-    }
-
     method resolve_member(
         path -> String,
         owner_type -> String,
@@ -434,8 +393,9 @@ class FrontendWorkspace {
 
     method update(path -> String, version -> Int, text -> String) -> FrontendResult {
         let normalized -> String = normalize_source_path(path);
-        let result -> FrontendResult = check_source(normalized, text);
         let source -> WorkspaceSource = self.documents[normalized];
+        if (source is !null && version <= source.version) { return source.result; }
+        let result -> FrontendResult = check_source(normalized, text);
         if (source is null) {
             source = WorkspaceSource(normalized, version, result);
             self.documents.put(normalized, source);
@@ -445,7 +405,6 @@ class FrontendWorkspace {
             source.result = result;
         }
         self.__rebuild_members();
-        self.__resolve_members();
         return result;
     }
 
@@ -462,7 +421,6 @@ class FrontendWorkspace {
         }
         self.sources = remaining;
         self.__rebuild_members();
-        self.__resolve_members();
         return true;
     }
 
@@ -611,6 +569,28 @@ class FrontendWorkspace {
             !document.result.valid ||
             reference is null) {
             return null;
+        }
+
+        if (reference.owner_type.length() > 0 || reference.receiver_index >= 0) {
+            let references -> Vector(Struct) = document.result.semantics.references;
+            let receiver -> SymbolReference = null;
+            if (reference.receiver_index >= 0 && reference.receiver_index < references.length()) { receiver = references[reference.receiver_index]; }
+            let receiver_definition -> SymbolDefinition = null;
+            if (receiver is !null) {
+                receiver_definition = self.resolve_reference(path, receiver);
+                if (receiver_definition is !null && receiver_definition.type_name.length() > 0) {
+                    let receiver_type -> String = self.__apply_type_steps(receiver_definition.type_name, reference.receiver_steps);
+                    reference.owner_type = self.__member_owner(receiver_type);
+                }
+            }
+            if (reference.owner_type.length() > 0) {
+                let resolve_path -> String = path;
+                if (receiver_definition is !null && receiver_definition.range is !null) { resolve_path = receiver_definition.range.file; }
+                let member -> SymbolDefinition = self.resolve_member(resolve_path, reference.owner_type, reference.name);
+                if (member is !null) { return member; }
+                if (reference.definition is !null && reference.definition.range is !null && reference.definition.range.file == path) { return reference.definition; }
+                return null;
+            }
         }
 
         if (reference.definition is !null) {

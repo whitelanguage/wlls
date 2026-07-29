@@ -33,7 +33,7 @@ class SymbolReference {
     let definition -> SymbolDefinition;
     let qualifier -> String;
     let owner_type -> String;
-    let receiver -> SymbolReference;
+    let receiver_index -> Int;
     let receiver_steps -> String;
 
     init(
@@ -46,36 +46,24 @@ class SymbolReference {
         self.definition = definition;
         self.qualifier = "";
         self.owner_type = "";
-        self.receiver = null;
+        self.receiver_index = -1;
         self.receiver_steps = "";
     }
 }
 
-class __TypeSource {
-    let reference -> SymbolReference;
-    let steps -> String;
-
-    init(reference -> SymbolReference, steps -> String) {
-        self.reference = reference;
-        self.steps = steps;
-    }
-}
+struct __TypeSource(reference_index -> Int, steps -> String)
 
 class SemanticDocument {
     let syntax -> FrontendDocument;
-    let definitions -> Vector(Struct);
-    let references -> Vector(Struct);
+    let definitions -> Vector(Struct) = null;
+    let references -> Vector(Struct) = null;
     let members -> Dict;
     let parent_types -> Dict;
 
-    init(
-        syntax -> FrontendDocument,
-        definitions -> Vector(Struct),
-        references -> Vector(Struct)
-    ) {
+    init(syntax -> FrontendDocument) {
         self.syntax = syntax;
-        self.definitions = definitions;
-        self.references = references;
+        self.definitions = [];
+        self.references = [];
         self.members = Dict(32);
         self.parent_types = Dict(16);
     }
@@ -375,13 +363,22 @@ func __reference(
     scope -> __Scope,
     token -> Token
 ) -> SymbolReference {
+    let definition -> SymbolDefinition = scope.find(token.value);
     let reference -> SymbolReference = SymbolReference(
         token.value,
         token_span(document.syntax.path, document.syntax.source_map, token),
-        scope.find(token.value)
+        null
     );
+    reference.definition = definition;
     document.references.append(reference);
     return reference;
+}
+
+func __record_reference(document -> SemanticDocument, scope -> __Scope, token -> Token) -> Void {
+    let definition -> SymbolDefinition = scope.find(token.value);
+    let reference -> SymbolReference = SymbolReference(token.value, token_span(document.syntax.path, document.syntax.source_map, token), null);
+    reference.definition = definition;
+    document.references.append(reference);
 }
 
 func __field_token(access -> FieldAccessNode) -> Token {
@@ -413,26 +410,26 @@ func __field_assign_token(document -> SemanticDocument, assignment -> FieldAssig
     );
 }
 
-func __reference_for_token(document -> SemanticDocument, token -> Token) -> SymbolReference {
+func __reference_index_for_token(document -> SemanticDocument, token -> Token) -> Int {
     let i -> Int = document.references.length() - 1;
     while (i >= 0) {
         let reference -> SymbolReference = document.references[i];
-        if (reference.name == token.value && reference.range.start.line == token.line && reference.range.start.byte_column == token.col) { return reference; }
+        if (reference.name == token.value && reference.range.start.line == token.line && reference.range.start.byte_column == token.col) { return i; }
         i -= 1;
     }
-    return null;
+    return -1;
 }
 
 func __type_source(document -> SemanticDocument, node -> Struct) -> __TypeSource {
-    if (node is null) { return __TypeSource(null, ""); }
+    if (node is null) { return __TypeSource(-1, ""); }
     let base -> BaseNode = node;
     if (base.type == NODE_VAR_ACCESS) {
         let access -> VarAccessNode = node;
-        return __TypeSource(__reference_for_token(document, access.name_tok), "");
+        return __TypeSource(__reference_index_for_token(document, access.name_tok), "");
     }
     if (base.type == NODE_FIELD_ACCESS) {
         let access -> FieldAccessNode = node;
-        return __TypeSource(__reference_for_token(document, __field_token(access)), "");
+        return __TypeSource(__reference_index_for_token(document, __field_token(access)), "");
     }
     if (base.type == NODE_CALL) {
         let call -> CallNode = node;
@@ -468,7 +465,7 @@ func __type_source(document -> SemanticDocument, node -> Struct) -> __TypeSource
         }
         return source;
     }
-    return __TypeSource(null, "");
+    return __TypeSource(-1, "");
 }
 
 func __walk_type(document -> SemanticDocument, scope -> __Scope, node -> Struct) -> Void {
@@ -478,7 +475,7 @@ func __walk_type(document -> SemanticDocument, scope -> __Scope, node -> Struct)
         let access -> VarAccessNode = node;
         if (access.name_tok.type == WhitelangTokens.TOK_IDENTIFIER ||
             access.name_tok.type == WhitelangTokens.TOK_TYPE) {
-            __reference(document, scope, access.name_tok);
+            __record_reference(document, scope, access.name_tok);
         }
     } else if (base.type == NODE_FIELD_ACCESS) {
         let access -> FieldAccessNode = node;
@@ -580,10 +577,10 @@ func __walk_node(document -> SemanticDocument, scope -> __Scope, node -> Struct)
         }
     } else if (base.type == NODE_VAR_ACCESS) {
         let access -> VarAccessNode = node;
-        __reference(document, scope, access.name_tok);
+        __record_reference(document, scope, access.name_tok);
     } else if (base.type == NODE_VAR_ASSIGN) {
         let assignment -> VarAssignNode = node;
-        __reference(document, scope, assignment.name_tok);
+        __record_reference(document, scope, assignment.name_tok);
         __walk_node(document, scope, assignment.value);
     } else if (base.type == NODE_BINOP || base.type == NODE_IS || base.type == NODE_IS_NOT) {
         let binary -> BinOpNode = node;
@@ -635,7 +632,7 @@ func __walk_node(document -> SemanticDocument, scope -> __Scope, node -> Struct)
         let field_reference -> SymbolReference =
             __reference(document, scope, __field_token(access));
         field_reference.owner_type = owner_type;
-        field_reference.receiver = type_source.reference;
+        field_reference.receiver_index = type_source.reference_index;
         field_reference.receiver_steps = type_source.steps;
         field_reference.definition =
             __find_member(document, owner_type, access.field_name);
@@ -655,7 +652,7 @@ func __walk_node(document -> SemanticDocument, scope -> __Scope, node -> Struct)
         let field_reference -> SymbolReference =
             __reference(document, scope, field_token);
         field_reference.owner_type = owner_type;
-        field_reference.receiver = type_source.reference;
+        field_reference.receiver_index = type_source.reference_index;
         field_reference.receiver_steps = type_source.steps;
         field_reference.definition =
             __find_member(document, owner_type, assignment.field_name);
@@ -716,7 +713,8 @@ func __walk_node(document -> SemanticDocument, scope -> __Scope, node -> Struct)
         let catch_node -> CatchNode = node;
         __walk_node(document, scope, catch_node.stmt);
         let catch_scope -> __Scope = __Scope(scope);
-        __definition(document, catch_scope, catch_node.err_name, SYMBOL_VARIABLE);
+        let catch_definition -> SymbolDefinition = __definition(document, catch_scope, catch_node.err_name, SYMBOL_VARIABLE);
+        catch_definition.type_name = "Error";
         __walk_node(document, catch_scope, catch_node.body);
     } else if (base.type == NODE_THROW) {
         let throw_node -> ThrowNode = node;
@@ -934,13 +932,13 @@ func __walk_top_level(document -> SemanticDocument, scope -> __Scope) -> Void {
             let class_node -> ClassDefNode = node;
             __walk_annotations(document, scope, class_node.annotations);
             if (class_node.parent_tok is !null) {
-                __reference(document, scope, class_node.parent_tok);
+                __record_reference(document, scope, class_node.parent_tok);
             }
             if (class_node.interfaces is !null) {
                 let j -> Int = 0;
                 while (j < class_node.interfaces.length()) {
                     let interface_token -> Token = class_node.interfaces[j];
-                    __reference(document, scope, interface_token);
+                    __record_reference(document, scope, interface_token);
                     j += 1;
                 }
             }
@@ -1089,7 +1087,7 @@ func __walk_top_level(document -> SemanticDocument, scope -> __Scope) -> Void {
 }
 
 func analyze_document(syntax -> FrontendDocument) -> SemanticDocument {
-    let document -> SemanticDocument = SemanticDocument(syntax, [], []);
+    let document -> SemanticDocument = SemanticDocument(syntax);
     if (syntax is null || syntax.ast is null) { return document; }
 
     __index_member_symbols(document);

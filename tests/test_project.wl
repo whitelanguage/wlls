@@ -87,6 +87,14 @@ func main() -> Int {
         return 1;
     }
 
+    let lazy_path -> String = "tests/fixtures/lazy_main.wl";
+    project.update(lazy_path, 1, "import answer from \"lazy_dep.wl\"\nfunc main() -> Int { return answer(); }\n");
+    let lazy -> source.SymbolDefinition = project.definition(lazy_path, 1, 29);
+    if (lazy is null || lazy.name != "answer" || !lazy.range.file.ends_with("tests/fixtures/lazy_dep.wl")) {
+        builtin.print("FAIL: unopened relative import");
+        return 1;
+    }
+
     builtin.print("PASS: frontend project");
     return 0;
 }

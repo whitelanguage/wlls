@@ -752,6 +752,20 @@ func __walk_function(
     __walk_node(document, scope, body);
 }
 
+func __import_module_token(node -> ImportNode) -> Token {
+    if (node.alias_tok is !null) { return node.alias_tok; }
+    let path -> String = node.path_tok.value;
+    let start -> Int = 0;
+    let i -> Int = 0;
+    while (i < path.length()) {
+        if (path[i] == '/' || path[i] == '\\') { start = i + 1; }
+        i += 1;
+    }
+    let end -> Int = path.length();
+    if (path.ends_with(".wl")) { end -= 3; }
+    return Token(type=WhitelangTokens.TOK_IDENTIFIER, value=path.slice(start, end), line=node.path_tok.line, col=node.path_tok.col);
+}
+
 func __declare_top_level(document -> SemanticDocument, scope -> __Scope) -> Void {
     let block -> BlockNode = document.syntax.ast;
     let i -> Int = 0;
@@ -828,13 +842,11 @@ func __declare_top_level(document -> SemanticDocument, scope -> __Scope) -> Void
             definition.type_name = interface_node.name_tok.value;
         } else if (base.type == NODE_IMPORT) {
             let import_node -> ImportNode = node;
-            if (import_node.alias_tok is !null) {
-                let module -> SymbolDefinition =
-                    __definition(document, scope, import_node.alias_tok, SYMBOL_MODULE);
+            if (import_node.symbols is null) {
+                let module -> SymbolDefinition = __definition(document, scope, __import_module_token(import_node), SYMBOL_MODULE);
                 module.top_level = true;
                 module.import_path = import_node.path_tok.value;
-            }
-            if (import_node.symbols is !null) {
+            } else {
                 let j -> Int = 0;
                 while (j < import_node.symbols.length()) {
                     let imported -> ImportSymbolNode = import_node.symbols[j];

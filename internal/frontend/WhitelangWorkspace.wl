@@ -1,9 +1,13 @@
 import Dict from "dict"
+import "file"
+import "sys"
 import * from "WhitelangFrontend.wl"
 import * from "WhitelangSemantic.wl"
 import * from "WhitelangAnalysis.wl"
 import * from "../../vendor/wlc-frontend/WhitelangNodes.wl"
 import "../../vendor/wlc-frontend/WhitelangTokens.wl"
+
+const MAX_INDEXED_SOURCE_SIZE -> Int = 67108864;
 
 class WorkspaceSource {
     let path -> String;
@@ -121,6 +125,9 @@ class FrontendWorkspace {
     let parents -> Dict = null;
     let file_parents -> Dict = null;
     let type_files -> Dict = null;
+    let loading -> Dict = null;
+    let resolving -> Dict = null;
+    let wl_path -> String = null;
 
     init() {
         self.documents = Dict(32);
@@ -130,6 +137,10 @@ class FrontendWorkspace {
         self.parents = Dict(32);
         self.file_parents = Dict(32);
         self.type_files = Dict(64);
+        self.loading = Dict(16);
+        self.resolving = Dict(32);
+        self.wl_path = sys.env.get_env("WL_PATH");
+        if (self.wl_path is !null) { self.wl_path = normalize_source_path(self.wl_path); }
     }
 
     method __member_key(owner_type -> String, name -> String) -> String {
@@ -356,17 +367,18 @@ class FrontendWorkspace {
                 context = self.find(type_file);
                 if (parent is null || context is null) { break; }
                 current = parent;
-            } else if (type_file is !null) {
+            } else {
                 let owner -> SymbolDefinition = self.__local_type(context, current);
                 if (owner is null) { owner = self.__imported_type(context, current); }
-                if (owner is null || owner.range is null) { break; }
-                let exact -> SymbolDefinition = self.file_members[owner.range.file + "\n" + key];
-                if (exact is !null) { return exact; }
-                let parent -> String = self.file_parents[owner.range.file + "\n" + current];
-                context = self.find(owner.range.file);
-                if (parent is null || context is null) { break; }
-                current = parent;
-            } else {
+                if (owner is !null && owner.range is !null) {
+                    let exact -> SymbolDefinition = self.file_members[owner.range.file + "\n" + key];
+                    if (exact is !null) { return exact; }
+                    let parent -> String = self.file_parents[owner.range.file + "\n" + current];
+                    context = self.find(owner.range.file);
+                    if (parent is null || context is null) { break; }
+                    current = parent;
+                    continue;
+                }
                 let candidate -> SymbolDefinition = self.members[key];
                 if (candidate is !null && candidate.range is !null) { return candidate; }
                 let parent -> String = self.parents[current];
@@ -428,26 +440,44 @@ class FrontendWorkspace {
         return self.documents[normalize_source_path(path)];
     }
 
-    method __import_source(from_path -> String, raw_path -> String) -> WorkspaceSource {
-        let candidate -> String = raw_path;
-        let absolute -> Bool =
-            raw_path.length() > 0 &&
-            (raw_path[0] == '/' || raw_path[0] == '\\');
-        let drive_path -> Bool =
-            raw_path.length() > 1 && raw_path[1] == ':';
-        if (!absolute && !drive_path) {
-            candidate = source_dir(from_path) + "/" + raw_path;
+    method __load_source(path -> String) -> WorkspaceSource {
+        let normalized -> String = normalize_source_path(path);
+        let existing -> WorkspaceSource = self.documents[normalized];
+        if (existing is !null) { return existing; }
+        if (self.loading.contains_key(normalized) || !file.exists(normalized)) { return null; }
+        self.loading.put(normalized, true);
+        let handle -> file.File = file.open(normalized)?;
+        catch(err) {
+            self.loading.remove(normalized);
+            return null;
         }
-        candidate = normalize_source_path(candidate);
+        let text -> String = handle.read_all()?;
+        catch(err) {
+            self.loading.remove(normalized);
+            return null;
+        }
+        if (text.length() > MAX_INDEXED_SOURCE_SIZE) {
+            self.loading.remove(normalized);
+            return null;
+        }
+        let result -> FrontendResult = self.update(normalized, -1, text);
+        self.loading.remove(normalized);
+        return self.documents[normalized];
+    }
 
-        let source -> WorkspaceSource = self.documents[candidate];
-        if (source is !null) { return source; }
-        if (!candidate.ends_with(".wl")) {
-            source = self.documents[candidate + ".wl"];
-            if (source is !null) { return source; }
-            source = self.documents[candidate + "/_pkg.wl"];
+    method __import_source(from_path -> String, raw_path -> String) -> WorkspaceSource {
+        if (raw_path.ends_with(".wl")) {
+            let candidate -> String = raw_path;
+            let absolute -> Bool = raw_path.length() > 0 && (raw_path[0] == '/' || raw_path[0] == '\\');
+            let drive_path -> Bool = raw_path.length() > 1 && raw_path[1] == ':';
+            if (!absolute && !drive_path) { candidate = source_dir(from_path) + "/" + raw_path; }
+            return self.__load_source(candidate);
         }
-        return source;
+        if (self.wl_path is null) { return null; }
+        let package_entry -> String = self.wl_path + "/std/" + raw_path + "/_pkg.wl";
+        let source -> WorkspaceSource = self.__load_source(package_entry);
+        if (source is !null) { return source; }
+        return self.__load_source(self.wl_path + "/std/" + raw_path + ".wl");
     }
 
     method __resolve_import(
@@ -463,7 +493,13 @@ class FrontendWorkspace {
             !imported.result.valid) {
             return null;
         }
-        return __top_level_definition(imported.result.semantics, name);
+        let key -> String = imported.path + "\n" + name;
+        if (self.resolving.contains_key(key)) { return null; }
+        self.resolving.put(key, true);
+        let definition -> SymbolDefinition = __top_level_definition(imported.result.semantics, name);
+        if (definition is null) { definition = self.__star_import(imported, name); }
+        self.resolving.remove(key);
+        return definition;
     }
 
     method __qualified_import(
@@ -578,6 +614,13 @@ class FrontendWorkspace {
             let receiver_definition -> SymbolDefinition = null;
             if (receiver is !null) {
                 receiver_definition = self.resolve_reference(path, receiver);
+                if (receiver_definition is !null && receiver_definition.kind == SYMBOL_MODULE && receiver_definition.range is !null && receiver_definition.import_path.length() > 0) {
+                    let module_source -> WorkspaceSource = self.find(receiver_definition.range.file);
+                    if (module_source is !null) {
+                        let module_member -> SymbolDefinition = self.__resolve_import(module_source, receiver_definition.import_path, reference.name);
+                        if (module_member is !null) { return module_member; }
+                    }
+                }
                 if (receiver_definition is !null && receiver_definition.type_name.length() > 0) {
                     let receiver_type -> String = self.__apply_type_steps(receiver_definition.type_name, reference.receiver_steps);
                     reference.owner_type = self.__member_owner(receiver_type);

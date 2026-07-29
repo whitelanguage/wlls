@@ -92,6 +92,8 @@ Feel free to throw in a TextMate grammar for immediate lexical colors while the 
 
 ## Workspace quirks & gotchas
 
-Imported definitions won't resolve until the relevant source documents have been pushed into the same server workspace. Project-wide file discovery is pretty limited right now, so if you're opening an existing project, make sure to sync its White Language documents first if you want cross-file navigation to work.
+Relative `.wl` imports and standard-library imports are loaded from disk when a query first needs them. Standard-library lookup follows `wlc`: package entry points are checked under `WL_PATH/std/<name>/_pkg.wl` before `WL_PATH/std/<name>.wl`. Keep `WL_PATH` pointed at the White Language installation used to build the project.
+
+The server doesn't scan every `.wl` file under the workspace root. Files that aren't open and aren't reachable through an import stay unindexed.
 
 Requests are handled synchronously. Queue your writes to stdin so message bodies don't get interleaved. If the process crashes, drop pending requests, spin up a fresh server, and reopen whatever documents the user currently has open.

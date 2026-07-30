@@ -12,6 +12,12 @@ func main() -> Int {
         return 1;
     }
 
+    let vscode_uri -> String = "file:///f%3A/White%20Language/%E4%B8%AD.wl";
+    if (protocol.uri_to_path(vscode_uri) != windows_path) {
+        builtin.print("FAIL: percent-encoded Windows drive");
+        return 1;
+    }
+
     let posix_path -> String = "/tmp/White Language/main.wl";
     let posix_uri -> String = "file:///tmp/White%20Language/main.wl";
     if (protocol.path_to_uri(posix_path) != posix_uri || protocol.uri_to_path(posix_uri) != posix_path) {

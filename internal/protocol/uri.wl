@@ -30,8 +30,6 @@ func uri_to_path(uri -> String) -> String {
         let authority -> String = uri.slice(start, authority_end);
         if (authority == "localhost") { start = authority_end; }
         else { unc = true; }
-    } else if (start + 2 < uri.length() && uri[start + 2] == ':') {
-        start += 1;
     }
     let result -> String = wl_alloc_string(Long(uri.length() - start + 2));
     if (result is null) { return null; }
@@ -61,6 +59,14 @@ func uri_to_path(uri -> String) -> String {
             written += 1;
             i += 1;
         }
+    }
+    if (!unc && written > 2 && output[0] == Byte(47) && output[2] == Byte(58) && ((output[1] >= Byte(65) && output[1] <= Byte(90)) || (output[1] >= Byte(97) && output[1] <= Byte(122)))) {
+        let index -> Int = 1;
+        while (index < written) {
+            output[index - 1] = output[index];
+            index += 1;
+        }
+        written -= 1;
     }
     if (!unc && written > 1 && output[1] == Byte(58) && output[0] >= Byte(97) && output[0] <= Byte(122)) { output[0] = Byte(Int(output[0]) - 32); }
     wl_string_set_length(result, written);

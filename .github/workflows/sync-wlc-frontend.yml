@@ -39,7 +39,7 @@ jobs:
           set -euo pipefail
 
           revision_file="vendor/wlc-frontend/REVISION"
-          recorded="$(sed -n 's/^commit=//p' "$revision_file")"
+          recorded="$(sed -n 's/^commit=//p' "$revision_file" | tr -d '\r')"
           latest="$(git -C upstream rev-parse HEAD)"
           files=(
             src/core/WhitelangExceptions.wl

@@ -240,10 +240,12 @@ func main() -> Int {
     let package_path -> String = "packages.wl";
     let package_result -> source.FrontendResult = workspace.update(package_path, 1, "import \"io\"\nimport \"json\"\nimport \"sys\"\nfunc inspect(value -> json.Value) -> Void {\n    io.stderr.write_line(\"x\")?;\n    catch(err) { return; }\n    let field -> json.Value = value.find(\"x\");\n    let path -> String = sys.env.get_env(\"WL_PATH\");\n}\n");
     let package_tokens -> Vector(Struct) = analysis.semantic_tokens(package_result, workspace, package_path);
+    let io_module -> analysis.SemanticToken = token_at(package_tokens, 4, 4);
+    let stderr_module -> analysis.SemanticToken = token_at(package_tokens, 4, 7);
     let io_write -> analysis.SemanticToken = token_at(package_tokens, 4, 14);
     let json_find -> analysis.SemanticToken = token_at(package_tokens, 6, 36);
     let env_get -> analysis.SemanticToken = token_at(package_tokens, 7, 33);
-    if (io_write is null || json_find is null || env_get is null || io_write.token_type != "function" || json_find.token_type != "method" || env_get.token_type != "function") {
+    if (io_module is null || stderr_module is null || io_write is null || json_find is null || env_get is null || io_module.token_type != "namespace" || stderr_module.token_type != "namespace" || io_module.modifiers.length() != 1 || io_module.modifiers[0] != "defaultLibrary" || io_write.token_type != "function" || json_find.token_type != "method" || env_get.token_type != "function") {
         builtin.print("FAIL: standard library package members");
         return 1;
     }

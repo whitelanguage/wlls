@@ -31,12 +31,14 @@ class __TokenBinding {
     let readonly -> Bool;
     let top_level -> Bool;
     let declaration -> Bool;
+    let default_library -> Bool;
 
-    init(kind -> Int, readonly -> Bool, top_level -> Bool, declaration -> Bool) {
+    init(kind -> Int, readonly -> Bool, top_level -> Bool, declaration -> Bool, default_library -> Bool) {
         self.kind = kind;
         self.readonly = readonly;
         self.top_level = top_level;
         self.declaration = declaration;
+        self.default_library = default_library;
     }
 }
 
@@ -60,7 +62,8 @@ func __index_document_symbols(
                 symbol.kind,
                 symbol.kind == source.SYMBOL_CONSTANT,
                 top_level,
-                true
+                true,
+                false
             )
         );
         __index_document_symbols(symbol.children, bindings, false);
@@ -70,14 +73,16 @@ func __index_document_symbols(
 
 func __binding_from_definition(
     definition -> source.SymbolDefinition,
-    declaration -> Bool
+    declaration -> Bool,
+    default_library -> Bool
 ) -> __TokenBinding {
     if (definition is null) { return null; }
     return __TokenBinding(
         definition.kind,
         definition.kind == source.SYMBOL_CONSTANT,
         definition.top_level,
-        declaration
+        declaration,
+        default_library
     );
 }
 
@@ -88,17 +93,23 @@ func __build_bindings(
 ) -> Dict {
     let bindings -> Dict = Dict(64);
     __index_document_symbols(result.syntax.symbols, bindings, true);
+    if (result.semantics is null) { return bindings; }
 
     let i -> Int = 0;
     while (i < result.semantics.definitions.length()) {
         let definition -> source.SymbolDefinition =
             result.semantics.definitions[i];
+        let binding_definition -> source.SymbolDefinition = definition;
+        if (definition.kind == source.SYMBOL_IMPORT) {
+            let imported -> source.SymbolDefinition = workspace.resolve_import(path, definition);
+            if (imported is !null) { binding_definition = imported; }
+        }
         bindings.put(
             __token_key(
                 definition.range.start.line,
                 definition.range.start.utf16_column
             ),
-            __binding_from_definition(definition, true)
+            __binding_from_definition(binding_definition, true, workspace.is_default_library(path, binding_definition))
         );
         i += 1;
     }
@@ -119,7 +130,7 @@ func __build_bindings(
                     reference.range.start.line,
                     reference.range.start.utf16_column
                 ),
-                __binding_from_definition(definition, false)
+                __binding_from_definition(definition, false, workspace.is_default_library(path, definition))
             );
         }
         i += 1;
@@ -129,10 +140,8 @@ func __build_bindings(
 
 func __semantic_type(kind -> Int) -> String {
     if (kind == source.SYMBOL_FUNCTION) { return "function"; }
-    if (kind == source.SYMBOL_METHOD ||
-        kind == source.SYMBOL_CONVERSION) {
-        return "method";
-    }
+    if (kind == source.SYMBOL_METHOD) { return "method"; }
+    if (kind == source.SYMBOL_CONVERSION) { return "keyword"; }
     if (kind == source.SYMBOL_PARAMETER) { return "parameter"; }
     if (kind == source.SYMBOL_FIELD) { return "property"; }
     if (kind == source.SYMBOL_CLASS) { return "class"; }
@@ -146,7 +155,7 @@ func __semantic_type(kind -> Int) -> String {
         kind == source.SYMBOL_ERROR_CASE) {
         return "enumMember";
     }
-    if (kind == source.SYMBOL_MODULE) { return "variable"; }
+    if (kind == source.SYMBOL_MODULE) { return "namespace"; }
     if (kind == source.SYMBOL_IMPORT) { return "variable"; }
     return "variable";
 }
@@ -156,6 +165,7 @@ func __binding_modifiers(binding -> __TokenBinding) -> Vector(String) {
     if (binding is null) { return modifiers; }
     if (binding.declaration) { modifiers.append("declaration"); }
     if (binding.readonly) { modifiers.append("readonly"); }
+    if (binding.default_library) { modifiers.append("defaultLibrary"); }
     return modifiers;
 }
 
@@ -226,30 +236,7 @@ func __is_operator(token_type -> Int) -> Bool {
 }
 
 func __is_keyword(token_type -> Int) -> Bool {
-    if (token_type == compiler.WhitelangTokens.TOK_IDENTIFIER ||
-        token_type == compiler.WhitelangTokens.TOK_INT ||
-        token_type == compiler.WhitelangTokens.TOK_FLOAT ||
-        token_type == compiler.WhitelangTokens.TOK_STR_LIT ||
-        token_type == compiler.WhitelangTokens.TOK_CHAR_LIT ||
-        token_type == compiler.WhitelangTokens.TOK_EOF ||
-        token_type == compiler.WhitelangTokens.TOK_AT ||
-        __is_builtin_type(token_type) ||
-        __is_operator(token_type)) {
-        return false;
-    }
-
-    return token_type != compiler.WhitelangTokens.TOK_LPAREN &&
-           token_type != compiler.WhitelangTokens.TOK_RPAREN &&
-           token_type != compiler.WhitelangTokens.TOK_SEMICOLON &&
-           token_type != compiler.WhitelangTokens.TOK_LBRACE &&
-           token_type != compiler.WhitelangTokens.TOK_RBRACE &&
-           token_type != compiler.WhitelangTokens.TOK_COMMA &&
-           token_type != compiler.WhitelangTokens.TOK_DOT &&
-           token_type != compiler.WhitelangTokens.TOK_ELLIPSIS &&
-           token_type != compiler.WhitelangTokens.TOK_LBRACKET &&
-           token_type != compiler.WhitelangTokens.TOK_RBRACKET &&
-           token_type != compiler.WhitelangTokens.TOK_COLON &&
-           token_type != compiler.WhitelangTokens.TOK_QUESTION;
+    return token_type == compiler.WhitelangTokens.TOK_LET || token_type == compiler.WhitelangTokens.TOK_TRUE || token_type == compiler.WhitelangTokens.TOK_FALSE || token_type == compiler.WhitelangTokens.TOK_IF || token_type == compiler.WhitelangTokens.TOK_ELSE || token_type == compiler.WhitelangTokens.TOK_WHILE || token_type == compiler.WhitelangTokens.TOK_BREAK || token_type == compiler.WhitelangTokens.TOK_CONTINUE || token_type == compiler.WhitelangTokens.TOK_FOR || token_type == compiler.WhitelangTokens.TOK_FUNC || token_type == compiler.WhitelangTokens.TOK_RETURN || token_type == compiler.WhitelangTokens.TOK_STRUCT || token_type == compiler.WhitelangTokens.TOK_THIS || token_type == compiler.WhitelangTokens.TOK_PTR || token_type == compiler.WhitelangTokens.TOK_REF || token_type == compiler.WhitelangTokens.TOK_DEREF || token_type == compiler.WhitelangTokens.TOK_NULLPTR || token_type == compiler.WhitelangTokens.TOK_NULL || token_type == compiler.WhitelangTokens.TOK_IS || token_type == compiler.WhitelangTokens.TOK_EXTERN || token_type == compiler.WhitelangTokens.TOK_FROM || token_type == compiler.WhitelangTokens.TOK_IMPORT || token_type == compiler.WhitelangTokens.TOK_CONST || token_type == compiler.WhitelangTokens.TOK_AS || token_type == compiler.WhitelangTokens.TOK_CLASS || token_type == compiler.WhitelangTokens.TOK_METHOD || token_type == compiler.WhitelangTokens.TOK_SELF || token_type == compiler.WhitelangTokens.TOK_SUPER || token_type == compiler.WhitelangTokens.TOK_ENUM || token_type == compiler.WhitelangTokens.TOK_INTERFACE || token_type == compiler.WhitelangTokens.TOK_WITH || token_type == compiler.WhitelangTokens.TOK_CATCH || token_type == compiler.WhitelangTokens.TOK_THROW || token_type == compiler.WhitelangTokens.TOK_IN || token_type == compiler.WhitelangTokens.TOK_ERROR;
 }
 
 func __append_span(
@@ -316,9 +303,7 @@ func semantic_tokens(
 ) -> Vector(Struct) {
     // lexical tokens come from wlc; the semantic index only refines identifiers
     let tokens -> Vector(Struct) = [];
-    if (result is null || !result.valid || result.semantics is null) {
-        return tokens;
-    }
+    if (result is null || result.syntax is null || result.syntax.source_map is null) { return tokens; }
 
     let bindings -> Dict = __build_bindings(result, workspace, path);
     let source_map -> source.SourceMap = result.syntax.source_map;
@@ -329,6 +314,7 @@ func semantic_tokens(
         );
     let trivia_index -> Int = 0;
     let annotation_name -> Bool = false;
+    compiler.WhitelangExceptions.begin_error_collection();
 
     while true {
         let token -> compiler.WhitelangTokens.Token =
@@ -397,6 +383,8 @@ func semantic_tokens(
             );
         }
     }
+    compiler.WhitelangExceptions.end_error_collection();
+    compiler.WhitelangExceptions.reset_errors();
     return tokens;
 }
 
@@ -417,7 +405,9 @@ func __token_type_index(token_type -> String) -> Int {
     if (token_type == "number") { return 13; }
     if (token_type == "comment") { return 14; }
     if (token_type == "operator") { return 15; }
-    return 16;
+    if (token_type == "annotation") { return 16; }
+    if (token_type == "namespace") { return 17; }
+    return 10;
 }
 
 func __modifier_bits(modifiers -> Vector(String)) -> Int {

@@ -37,6 +37,7 @@ func main() -> Int {
         "    let wide -> UInt128 = UInt128(0);\n" +
         "    let values -> Vector(Int) = [];\n" +
         "    method name(prefix -> String) -> String { return prefix + \"user\"; }\n" +
+        "    type String { return \"user\"; }\n" +
         "}\n";
 
     let workspace -> source.FrontendWorkspace = source.FrontendWorkspace();
@@ -70,6 +71,12 @@ func main() -> Int {
     let vector_type -> analysis.SemanticToken = token_at(tokens, 6, 18);
     if (wide_type is null || vector_type is null || wide_type.token_type != "type" || vector_type.token_type != "type") {
         builtin.print("FAIL: named builtin types");
+        return 1;
+    }
+    let conversion_keyword -> analysis.SemanticToken = token_at(tokens, 8, 4);
+    let conversion_type -> analysis.SemanticToken = token_at(tokens, 8, 9);
+    if (conversion_keyword is null || conversion_type is null || conversion_keyword.token_type != "keyword" || conversion_type.token_type != "type") {
+        builtin.print("FAIL: conversion keyword");
         return 1;
     }
 

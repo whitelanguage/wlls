@@ -57,4 +57,18 @@ class Workspace {
         self.frontend.remove(normalized);
         return true;
     }
+
+    method is_open(path -> String) -> Bool {
+        return self.documents.contains_key(source.normalize_source_path(path));
+    }
+
+    method is_indexed(path -> String) -> Bool {
+        return self.frontend.find(path) is !null;
+    }
+
+    method invalidate(path -> String) -> Bool {
+        let normalized -> String = source.normalize_source_path(path);
+        if (self.documents.contains_key(normalized)) { return false; }
+        return self.frontend.remove(normalized);
+    }
 }

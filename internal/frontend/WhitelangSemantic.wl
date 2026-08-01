@@ -857,6 +857,9 @@ func __declare_top_level(document -> SemanticDocument, scope -> __Scope) -> Void
                     definition.top_level = true;
                     definition.import_path = import_node.path_tok.value;
                     definition.import_name = imported.name_tok.value;
+                    if (imported.alias_tok is !null) {
+                        document.references.append(SymbolReference(imported.name_tok.value, token_span(document.syntax.path, document.syntax.source_map, imported.name_tok), definition));
+                    }
                     j += 1;
                 }
             }
@@ -1061,6 +1064,12 @@ func __walk_top_level(document -> SemanticDocument, scope -> __Scope) -> Void {
             }
             while (j < count) {
                 let field -> EnumFieldNode = enum_node.fields[j];
+                let field_kind -> Int = SYMBOL_ENUM_CASE;
+                if (enum_node.is_error) { field_kind = SYMBOL_ERROR_CASE; }
+                let field_definition -> SymbolDefinition = SymbolDefinition(field.name_tok.value, field_kind, token_span(document.syntax.path, document.syntax.source_map, field.name_tok));
+                field_definition.owner_type = enum_node.name_tok.value;
+                document.definitions.append(field_definition);
+                document.members.put(enum_node.name_tok.value + "." + field.name_tok.value, field_definition);
                 __walk_node(document, scope, field.value);
                 j += 1;
             }

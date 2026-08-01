@@ -570,6 +570,14 @@ class FrontendWorkspace {
         return null;
     }
 
+    method __prelude(source_document -> WorkspaceSource, name -> String) -> SymbolDefinition {
+        let definition -> SymbolDefinition = self.__resolve_import(source_document, "errors", name);
+        if (definition is !null) { return definition; }
+        definition = self.__resolve_import(source_document, "builtin", name);
+        if (definition is !null) { return definition; }
+        return self.__resolve_import(source_document, "dict", name);
+    }
+
     method definition(
         path -> String,
         line -> Int,
@@ -659,7 +667,32 @@ class FrontendWorkspace {
                 );
             if (qualified is !null) { return qualified; }
         }
-        return self.__star_import(document, reference.name);
+        let imported -> SymbolDefinition = self.__star_import(document, reference.name);
+        if (imported is !null) { return imported; }
+        return self.__prelude(document, reference.name);
+    }
+
+    method resolve_import(path -> String, definition -> SymbolDefinition) -> SymbolDefinition {
+        let document -> WorkspaceSource = self.find(path);
+        if (document is null || document.result is null || !document.result.valid || definition is null) { return null; }
+        if (definition.kind != SYMBOL_IMPORT) { return definition; }
+        return self.__resolve_import(document, definition.import_path, definition.import_name);
+    }
+
+    method is_standard_source(path -> String) -> Bool {
+        if (path is null || self.wl_path is null) { return false; }
+        let normalized -> String = normalize_source_path(path);
+        return normalized.starts_with(self.wl_path + "/std/");
+    }
+
+    method is_default_library(path -> String, definition -> SymbolDefinition) -> Bool {
+        if (definition is null) { return false; }
+        if (definition.range is !null && self.is_standard_source(definition.range.file)) { return true; }
+        if (definition.kind != SYMBOL_MODULE || definition.import_path.length() == 0) { return false; }
+        let document -> WorkspaceSource = self.find(path);
+        if (document is null) { return false; }
+        let imported -> WorkspaceSource = self.__import_source(document.path, definition.import_path);
+        return imported is !null && self.is_standard_source(imported.path);
     }
 
     method type_name(

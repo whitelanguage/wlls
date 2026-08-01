@@ -21,6 +21,7 @@ Check the `initialize` result to see what's currently supported:
 - document symbols
 - go to definition
 - full semantic tokens
+- semantic-token refresh after project changes
 
 Incremental document changes, semantic-token deltas, completion, hover, references, rename, formatting, and cancellation are not implemented yet. Don't assume they exist—check the advertised capabilities first.
 
@@ -62,6 +63,10 @@ deltaLine, deltaStart, length, tokenType, tokenModifiers
 
 Token positions and lengths use UTF-16 code units, matching what the server advertised.
 
+The current token types are `keyword`, `type`, `class`, `struct`, `interface`, `enum`, `enumMember`, `function`, `method`, `parameter`, `variable`, `property`, `string`, `number`, `comment`, `operator`, `decorator`, and `namespace`. Module names and module aliases use `namespace`; named imports use the type of the symbol they resolve to. Files with syntax errors still receive lexer-backed tokens for the portions that can be classified safely.
+
+If the client advertises `workspace.semanticTokens.refreshSupport`, wlls sends `workspace/semanticTokens/refresh` when a document or dependency changes. If the client also supports dynamic watched-file registration, wlls registers `**/*.wl` through `client/registerCapability`. Clients must answer both server requests normally.
+
 ## VS Code
 
 A VS Code extension should just boot up `wlls` using `vscode-languageclient`:
@@ -93,6 +98,10 @@ Feel free to throw in a TextMate grammar for immediate lexical colors while the 
 ## Workspace quirks & gotchas
 
 Relative `.wl` imports and standard-library imports are loaded from disk when a query first needs them. Standard-library lookup follows `wlc`: package entry points are checked under `WL_PATH/std/<name>/_pkg.wl` before `WL_PATH/std/<name>.wl`. Keep `WL_PATH` pointed at the White Language installation used to build the project.
+
+Name resolution includes the same implicit `errors`, `builtin`, and `dict` prelude used by `wlc`. Prelude symbols and symbols resolved from `std` carry the `defaultLibrary` semantic-token modifier.
+
+Watched changes invalidate unopened dependency files before semantic tokens are refreshed. Open files remain owned by `didOpen` and `didChange`, so an editor's unsaved buffer is never replaced with the on-disk copy.
 
 The server doesn't scan every `.wl` file under the workspace root. Files that aren't open and aren't reachable through an import stay unindexed.
 

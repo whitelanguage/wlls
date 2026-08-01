@@ -79,6 +79,30 @@ func main() -> Int {
         return 1;
     }
 
+    let refresh_service -> server.Server = server.Server();
+    response = refresh_service.handle("{\"jsonrpc\":\"2.0\",\"id\":10,\"method\":\"initialize\",\"params\":{\"capabilities\":{\"workspace\":{\"semanticTokens\":{\"refreshSupport\":true},\"didChangeWatchedFiles\":{\"dynamicRegistration\":true}}}}}");
+    refresh_service.handle("{\"jsonrpc\":\"2.0\",\"method\":\"initialized\",\"params\":{}}");
+    let outgoing -> Vector(String) = refresh_service.take_outgoing();
+    if (outgoing.length() != 1 || !outgoing[0].starts_with("{\"jsonrpc\":\"2.0\",\"id\":1000000,\"method\":\"client/registerCapability\"") || !outgoing[0].ends_with("{\"globPattern\":\"**/*.wl\"}]}}]}}")) {
+        builtin.print("FAIL: watched file registration");
+        return 1;
+    }
+    refresh_service.handle("{\"jsonrpc\":\"2.0\",\"id\":1000000,\"result\":null}");
+    refresh_service.workspace.frontend.update("/refresh.wl", -1, "func main() -> Int { return 1; }");
+    refresh_service.handle("{\"jsonrpc\":\"2.0\",\"method\":\"textDocument/didOpen\",\"params\":{\"textDocument\":{\"uri\":\"file:///refresh.wl\",\"languageId\":\"whitelang\",\"version\":1,\"text\":\"func main() -> Int { return 0; }\"}}}");
+    outgoing = refresh_service.take_outgoing();
+    if (outgoing.length() != 1 || outgoing[0] != "{\"jsonrpc\":\"2.0\",\"id\":1000001,\"method\":\"workspace/semanticTokens/refresh\"}") {
+        builtin.print("FAIL: semantic token refresh");
+        return 1;
+    }
+    refresh_service.handle("{\"jsonrpc\":\"2.0\",\"id\":1000001,\"result\":null}");
+    refresh_service.handle("{\"jsonrpc\":\"2.0\",\"method\":\"workspace/didChangeWatchedFiles\",\"params\":{\"changes\":[{\"uri\":\"file:///dependency.wl\",\"type\":2}]}}");
+    outgoing = refresh_service.take_outgoing();
+    if (outgoing.length() != 1 || outgoing[0] != "{\"jsonrpc\":\"2.0\",\"id\":1000002,\"method\":\"workspace/semanticTokens/refresh\"}") {
+        builtin.print("FAIL: dependency refresh");
+        return 1;
+    }
+
     response = service.handle("{\"jsonrpc\":\"2.0\",\"id\":5,\"method\":\"shutdown\",\"params\":null}");
     if (!service.shutdown_requested || response != "{\"jsonrpc\":\"2.0\",\"id\":5,\"result\":null}") {
         builtin.print("FAIL: shutdown");

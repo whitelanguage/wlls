@@ -32,6 +32,14 @@ class Request {
         return value;
     }
 
+    method bool(name -> String, fallback -> Bool) -> Bool {
+        let field -> json.Value = self.root.find(name);
+        if (field is null) { return fallback; }
+        let value -> Bool = field.as_bool()?;
+        catch(err) { return fallback; }
+        return value;
+    }
+
     method object(name -> String) -> Request {
         let field -> json.Value = self.root.find(name);
         if (field is null || field.kind() != json.Kind.Object) { return null; }

@@ -8,12 +8,7 @@ class FrontendResult {
     let diagnostics -> Vector(Struct);
     let valid -> Bool;
 
-    init(
-        syntax -> FrontendDocument,
-        semantics -> SemanticDocument,
-        diagnostics -> Vector(Struct),
-        valid -> Bool
-    ) {
+    init(syntax -> FrontendDocument, semantics -> SemanticDocument, diagnostics -> Vector(Struct), valid -> Bool) {
         self.syntax = syntax;
         self.semantics = semantics;
         self.diagnostics = diagnostics;

@@ -1,8 +1,7 @@
 // wlls.wl
 import "builtin"
+import "process"
 import "internal/server/_pkg.wl" as server
-
-extern func get_arg(ptr argv -> String, idx -> Int) -> String from "C";
 
 func print_usage() -> Void {
     builtin.print("White Language Language Server");
@@ -15,7 +14,7 @@ func main(argc -> Int, ptr argv -> String) -> Int {
         return 1;
     }
 
-    let option -> String = get_arg(argv, 1);
+    let option -> String = process.argument(argc, argv, 1);
     if (option == "-h" || option == "--help") {
         print_usage();
         return 0;

@@ -42,10 +42,7 @@ class SourceMap {
         return end;
     }
 
-    method position(
-        line -> Int,
-        byte_column -> Int
-    ) -> WhitelangExceptions.SourcePosition {
+    method position(line -> Int, byte_column -> Int) -> WhitelangExceptions.SourcePosition {
         let target_line -> Int = line;
         if (target_line < 0) { target_line = 0; }
         if (target_line >= self.line_starts.length()) {
@@ -63,8 +60,7 @@ class SourceMap {
         let unicode_column -> Int = 0;
         let utf16_column -> Int = 0;
         while (offset < target) {
-            let unit -> WhitelangLexer.Utf8Unit =
-                WhitelangLexer.decode_utf8_unit(self.text, offset);
+            let unit -> WhitelangLexer.Utf8Unit = WhitelangLexer.decode_utf8_unit(self.text, offset);
             if (unit.width <= 0 || offset + unit.width > target) { break; }
             offset += unit.width;
             unicode_column += 1;
@@ -75,32 +71,15 @@ class SourceMap {
             }
         }
 
-        return WhitelangExceptions.SourcePosition(
-            byte_offset=start + column,
-            line=target_line,
-            byte_column=column,
-            unicode_column=unicode_column,
-            utf16_column=utf16_column
-        );
+        return WhitelangExceptions.SourcePosition(byte_offset=start + column, line=target_line, byte_column=column, unicode_column=unicode_column, utf16_column=utf16_column);
     }
 
-    method range(
-        file -> String,
-        line -> Int,
-        byte_column -> Int,
-        byte_width -> Int
-    ) -> WhitelangExceptions.SourceRange {
+    method range(file -> String, line -> Int, byte_column -> Int, byte_width -> Int) -> WhitelangExceptions.SourceRange {
         // token ranges stay line-local; multiline trivia is handled by the token encoder
         let width -> Int = byte_width;
         if (width < 0) { width = 0; }
-        let start -> WhitelangExceptions.SourcePosition =
-            self.position(line, byte_column);
-        let finish -> WhitelangExceptions.SourcePosition =
-            self.position(line, byte_column + width);
-        return WhitelangExceptions.SourceRange(
-            file=file,
-            start=start,
-            end=finish
-        );
+        let start -> WhitelangExceptions.SourcePosition = self.position(line, byte_column);
+        let finish -> WhitelangExceptions.SourcePosition = self.position(line, byte_column + width);
+        return WhitelangExceptions.SourceRange(file=file, start=start, end=finish);
     }
 }

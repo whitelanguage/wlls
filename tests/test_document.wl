@@ -14,11 +14,9 @@ func main() -> Int {
         "    method get() -> Int { return self.value; }\n" +
         "}\n";
 
-    let document -> source.FrontendDocument =
-        source.parse_document("memory.wl", source_text);
+    let document -> source.FrontendDocument = source.parse_document("memory.wl", source_text);
 
-    if (document.source_map is null ||
-        document.source_map.line_count() != 8) {
+    if (document.source_map is null || document.source_map.line_count() != 8) {
         builtin.print("FAIL: document source map");
         return 1;
     }

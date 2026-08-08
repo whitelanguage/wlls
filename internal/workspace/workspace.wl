@@ -8,12 +8,7 @@ class Document {
     let text -> String;
     let result -> source.FrontendResult;
 
-    init(
-        path -> String,
-        version -> Int,
-        text -> String,
-        result -> source.FrontendResult
-    ) {
+    init(path -> String, version -> Int, text -> String, result -> source.FrontendResult) {
         self.path = path;
         self.version = version;
         self.text = text;

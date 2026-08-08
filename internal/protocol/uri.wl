@@ -1,14 +1,5 @@
 // file URI conversion at the LSP boundary
-extern "C" {
-    func wl_alloc_string(size -> Long) -> String;
-    func wl_string_set_length(value -> String, length -> Int) -> Void;
-}
-
-func __string_data(value -> String) -> AnyPtr {
-    if (value is null) { return nullptr; }
-    let ptr fields -> AnyPtr = AnyPtr(value);
-    return fields[0];
-}
+import "strings"
 
 func __hex_digit(value -> Byte) -> Int {
     let raw -> Int = Int(value);
@@ -16,6 +7,24 @@ func __hex_digit(value -> Byte) -> Int {
     if (raw >= 97 && raw <= 102) { return raw - 97 + 10; }
     if (raw >= 65 && raw <= 70) { return raw - 65 + 10; }
     return -1;
+}
+
+func __write_byte(output -> strings.Builder, value -> Byte) -> Bool {
+    output.write_byte(value)?;
+    catch(err) { return false; }
+    return true;
+}
+
+func __write(output -> strings.Builder, value -> String) -> Bool {
+    output.write(value)?;
+    catch(err) { return false; }
+    return true;
+}
+
+func __finish(output -> strings.Builder) -> String {
+    let result -> String = output.build()?;
+    catch(err) { return null; }
+    return result;
 }
 
 func uri_to_path(uri -> String) -> String {
@@ -31,47 +40,35 @@ func uri_to_path(uri -> String) -> String {
         if (authority == "localhost") { start = authority_end; }
         else { unc = true; }
     }
-    let result -> String = wl_alloc_string(Long(uri.length() - start + 2));
-    if (result is null) { return null; }
-    let ptr output -> Byte = __string_data(result);
-    let i -> Int = start;
-    let written -> Int = 0;
-    if (unc) {
-        output[written] = Byte(47);
-        output[written + 1] = Byte(47);
-        written += 2;
+    let drive_path -> Bool = false;
+    if (!unc && start + 2 < uri.length() && uri[start] == '/' && ((uri[start + 1] >= 'A' && uri[start + 1] <= 'Z') || (uri[start + 1] >= 'a' && uri[start + 1] <= 'z'))) {
+        if (uri[start + 2] == ':') { drive_path = true; }
+        else if (start + 4 < uri.length() && uri[start + 2] == '%' && __hex_digit(uri[start + 3]) >= 0 && __hex_digit(uri[start + 4]) >= 0 && ((__hex_digit(uri[start + 3]) << 4) | __hex_digit(uri[start + 4])) == 58) { drive_path = true; }
     }
+    if (drive_path) { start += 1; }
+    let output -> strings.Builder = strings.Builder(uri.length() - start + 2);
+    if (unc && (!__write_byte(output, Byte(47)) || !__write_byte(output, Byte(47)))) { return null; }
+    let i -> Int = start;
+    let first -> Bool = true;
     while (i < uri.length()) {
         if (uri[i] == '?' || uri[i] == '#') { return null; }
-        if (uri[i] == '%' && i + 2 < uri.length()) {
+        let value -> Byte = uri[i];
+        if (value == '%') {
+            if (i + 2 >= uri.length()) { return null; }
             let high -> Int = __hex_digit(uri[i + 1]);
             let low -> Int = __hex_digit(uri[i + 2]);
             if (high < 0 || low < 0) { return null; }
             let decoded -> Int = (high << 4) | low;
-            if (decoded == 0) { return null; }
-            output[written] = Byte(decoded);
-            written += 1;
+            if (decoded == 0 || !__write_byte(output, Byte(decoded))) { return null; }
             i += 3;
-        } else if (uri[i] == '%') {
-            return null;
         } else {
-            output[written] = uri[i];
-            written += 1;
+            if (first && drive_path && value >= 'a' && value <= 'z') { value = Byte(Int(value) - 32); }
+            if (!__write_byte(output, value)) { return null; }
             i += 1;
         }
+        first = false;
     }
-    if (!unc && written > 2 && output[0] == Byte(47) && output[2] == Byte(58) && ((output[1] >= Byte(65) && output[1] <= Byte(90)) || (output[1] >= Byte(97) && output[1] <= Byte(122)))) {
-        let index -> Int = 1;
-        while (index < written) {
-            output[index - 1] = output[index];
-            index += 1;
-        }
-        written -= 1;
-    }
-    if (!unc && written > 1 && output[1] == Byte(58) && output[0] >= Byte(97) && output[0] <= Byte(122)) { output[0] = Byte(Int(output[0]) - 32); }
-    wl_string_set_length(result, written);
-    if (!result.is_valid_utf8()) { return null; }
-    return result;
+    return __finish(output);
 }
 
 func __uri_unreserved(value -> Byte) -> Bool {
@@ -87,40 +84,24 @@ func __hex(value -> Int) -> Byte {
 func path_to_uri(path -> String) -> String {
     if (path is null) { return null; }
     if (path.starts_with("file://")) { return path; }
-    let result -> String = wl_alloc_string(Long(path.length()) * 3L + 8L);
-    if (result is null) { return null; }
-    let ptr output -> Byte = __string_data(result);
-    let written -> Int = 0;
-    let prefix -> String = "file://";
-    let prefix_index -> Int = 0;
-    while (prefix_index < prefix.length()) {
-        output[written] = prefix[prefix_index];
-        written += 1;
-        prefix_index += 1;
-    }
+    let capacity -> Int = 64;
+    if (path.length() <= (2147483647 - 8) / 3) { capacity = path.length() * 3 + 8; }
+    let output -> strings.Builder = strings.Builder(capacity);
+    if (!__write(output, "file://")) { return null; }
     let unc -> Bool = path.length() > 1 && (path[0] == '/' || path[0] == '\\') && (path[1] == '/' || path[1] == '\\');
-    if (!unc && (path.length() == 0 || path[0] != '/')) {
-        output[written] = Byte(47);
-        written += 1;
-    }
+    if (!unc && (path.length() == 0 || path[0] != '/') && !__write_byte(output, Byte(47))) { return null; }
     let i -> Int = 0;
     if (unc) { i = 2; }
     while (i < path.length()) {
         let value -> Byte = path[i];
         if (value == '\\') {
-            output[written] = Byte(47);
-            written += 1;
+            if (!__write_byte(output, Byte(47))) { return null; }
         } else if (__uri_unreserved(value)) {
-            output[written] = value;
-            written += 1;
+            if (!__write_byte(output, value)) { return null; }
         } else {
-            output[written] = Byte(37);
-            output[written + 1] = __hex((Int(value) >> 4) & 15);
-            output[written + 2] = __hex(Int(value) & 15);
-            written += 3;
+            if (!__write_byte(output, Byte(37)) || !__write_byte(output, __hex((Int(value) >> 4) & 15)) || !__write_byte(output, __hex(Int(value) & 15))) { return null; }
         }
         i += 1;
     }
-    wl_string_set_length(result, written);
-    return result;
+    return __finish(output);
 }

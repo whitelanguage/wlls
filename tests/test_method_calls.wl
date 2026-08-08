@@ -6,11 +6,7 @@ import "builtin"
 import "../internal/frontend/_pkg.wl" as source
 import "../internal/analysis/_pkg.wl" as analysis
 
-func token_at(
-    tokens -> Vector(Struct),
-    line -> Int,
-    character -> Int
-) -> analysis.SemanticToken {
+func token_at(tokens -> Vector(Struct), line -> Int, character -> Int) -> analysis.SemanticToken {
     let i -> Int = 0;
     while (i < tokens.length()) {
         let token -> analysis.SemanticToken = tokens[i];
@@ -81,15 +77,13 @@ func main() -> Int {
         "}\n";
 
     let workspace -> source.FrontendWorkspace = source.FrontendWorkspace();
-    let result -> source.FrontendResult =
-        workspace.update("memory.wl", 1, text);
+    let result -> source.FrontendResult = workspace.update("memory.wl", 1, text);
     if (!result.valid) {
         builtin.print("FAIL: member call source did not parse");
         return 1;
     }
 
-    let tokens -> Vector(Struct) =
-        analysis.semantic_tokens(result, workspace, "memory.wl");
+    let tokens -> Vector(Struct) = analysis.semantic_tokens(result, workspace, "memory.wl");
     if (tokens.length() == 0) {
         builtin.print("FAIL: member calls produced no semantic tokens");
         return 1;
@@ -218,10 +212,8 @@ func main() -> Int {
     }
 
     workspace.remove("project/output.wl");
-    let closed_tokens -> Vector(Struct) =
-        analysis.semantic_tokens(external, workspace, external_path);
-    let closed_call -> analysis.SemanticToken =
-        token_at(closed_tokens, 2, 18);
+    let closed_tokens -> Vector(Struct) = analysis.semantic_tokens(external, workspace, external_path);
+    let closed_call -> analysis.SemanticToken = token_at(closed_tokens, 2, 18);
     if (closed_call is null || closed_call.token_type != "variable") {
         builtin.print("FAIL: closed document member remained indexed");
         return 1;

@@ -42,8 +42,7 @@ func main() -> Int {
 
     let workspace -> source.FrontendWorkspace = source.FrontendWorkspace();
     let result -> source.FrontendResult = workspace.update(path, 1, text);
-    let tokens -> Vector(Struct) =
-        analysis.semantic_tokens(result, workspace, path);
+    let tokens -> Vector(Struct) = analysis.semantic_tokens(result, workspace, path);
 
     let required -> Vector(String) = [
         "struct",

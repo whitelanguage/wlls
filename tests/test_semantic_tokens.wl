@@ -6,12 +6,7 @@ import "builtin"
 import "../internal/frontend/_pkg.wl" as source
 import "../internal/analysis/_pkg.wl" as analysis
 
-func has_token(
-    tokens -> Vector(Struct),
-    line -> Int,
-    character -> Int,
-    token_type -> String
-) -> Bool {
+func has_token(tokens -> Vector(Struct), line -> Int, character -> Int, token_type -> String) -> Bool {
     let i -> Int = 0;
     while (i < tokens.length()) {
         let token -> analysis.SemanticToken = tokens[i];
@@ -38,8 +33,7 @@ func main() -> Int {
 
     let workspace -> source.FrontendWorkspace = source.FrontendWorkspace();
     let result -> source.FrontendResult = workspace.update(path, 1, text);
-    let tokens -> Vector(Struct) =
-        analysis.semantic_tokens(result, workspace, path);
+    let tokens -> Vector(Struct) = analysis.semantic_tokens(result, workspace, path);
 
     if (tokens.length() != 26) {
         builtin.print("FAIL: semantic token count " + tokens.length());
@@ -117,8 +111,7 @@ func main() -> Int {
         "import add from \"math.wl\"\n" +
         "func main() -> Int { return add(1, 2); }\n"
     );
-    let imported_tokens -> Vector(Struct) =
-        analysis.semantic_tokens(imported, workspace, imported_path);
+    let imported_tokens -> Vector(Struct) = analysis.semantic_tokens(imported, workspace, imported_path);
     if (!has_token(imported_tokens, 0, 7, "function") || !has_token(imported_tokens, 1, 28, "function")) {
         builtin.print("FAIL: imported function token");
         return 1;
@@ -146,8 +139,7 @@ func main() -> Int {
         1,
         "func use(type -> Int) -> Int { return type; }\n"
     );
-    let contextual_tokens -> Vector(Struct) =
-        analysis.semantic_tokens(contextual, workspace, contextual_path);
+    let contextual_tokens -> Vector(Struct) = analysis.semantic_tokens(contextual, workspace, contextual_path);
     if (!has_token(contextual_tokens, 0, 9, "parameter") ||
         !has_token(contextual_tokens, 0, 38, "parameter")) {
         builtin.print("FAIL: contextual type token");

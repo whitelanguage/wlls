@@ -33,8 +33,7 @@ func source_dir(path -> String) -> String {
 }
 
 func normalize_source_path(path -> String) -> String {
-    let absolute -> Bool =
-        path.length() > 0 && (path[0] == '/' || path[0] == '\\');
+    let absolute -> Bool = path.length() > 0 && (path[0] == '/' || path[0] == '\\');
     let unc -> Bool = path.length() > 1 && (path[0] == '/' || path[0] == '\\') && (path[1] == '/' || path[1] == '\\');
     let parts -> Vector(String) = [];
     let start -> Int = 0;
@@ -57,8 +56,7 @@ func normalize_source_path(path -> String) -> String {
         let part -> String = parts[i];
         if (part == ".") {
         } else if (part == "..") {
-            if (normalized.length() > 0 &&
-                normalized[normalized.length() - 1] != "..") {
+            if (normalized.length() > 0 && normalized[normalized.length() - 1] != "..") {
                 let shortened -> Vector(String) = [];
                 let j -> Int = 0;
                 while (j + 1 < normalized.length()) {
@@ -101,10 +99,7 @@ func __module_name(path -> String) -> String {
     return path.slice(start, end);
 }
 
-func __top_level_definition(
-    document -> SemanticDocument,
-    name -> String
-) -> SymbolDefinition {
+func __top_level_definition(document -> SemanticDocument, name -> String) -> SymbolDefinition {
     if (document is null) { return null; }
     let i -> Int = 0;
     while (i < document.definitions.length()) {
@@ -214,11 +209,8 @@ class FrontendWorkspace {
         let i -> Int = 0;
         while (i < self.sources.length()) {
             let source -> WorkspaceSource = self.sources[i];
-            if (source.result is !null &&
-                source.result.valid &&
-                source.result.semantics is !null) {
-                let definitions -> Vector(Struct) =
-                    source.result.semantics.definitions;
+            if (source.result is !null && source.result.valid && source.result.semantics is !null) {
+                let definitions -> Vector(Struct) = source.result.semantics.definitions;
                 let j -> Int = 0;
                 while (j < definitions.length()) {
                     let definition -> SymbolDefinition = definitions[j];
@@ -228,23 +220,13 @@ class FrontendWorkspace {
                         else if (type_file != definition.range.file) { self.type_files.put(definition.name, ""); }
                     }
                     if (definition.owner_type.length() > 0) {
-                        let key -> String = self.__member_key(
-                            definition.owner_type,
-                            definition.name
-                        );
-                        self.file_members.put(
-                            definition.range.file + "\n" + key,
-                            definition
-                        );
-                        let existing -> SymbolDefinition =
-                            self.members[key];
+                        let key -> String = self.__member_key(definition.owner_type, definition.name);
+                        self.file_members.put(definition.range.file + "\n" + key, definition);
+                        let existing -> SymbolDefinition = self.members[key];
                         if (existing is null) {
                             self.members.put(key, definition);
-                        } else if (existing.range is !null &&
-                                   existing.range.file !=
-                                   definition.range.file) {
-                            let ambiguous -> SymbolDefinition =
-                                SymbolDefinition("", 0, null);
+                        } else if (existing.range is !null && existing.range.file != definition.range.file) {
+                            let ambiguous -> SymbolDefinition = SymbolDefinition("", 0, null);
                             ambiguous.owner_type = definition.owner_type;
                             self.members.put(key, ambiguous);
                         }
@@ -274,27 +256,16 @@ class FrontendWorkspace {
         }
     }
 
-    method __local_type(
-        source -> WorkspaceSource,
-        type_name -> String
-    ) -> SymbolDefinition {
-        let definition -> SymbolDefinition =
-            __top_level_definition(source.result.semantics, type_name);
+    method __local_type(source -> WorkspaceSource, type_name -> String) -> SymbolDefinition {
+        let definition -> SymbolDefinition = __top_level_definition(source.result.semantics, type_name);
         if (definition is null) { return null; }
-        if (definition.kind == SYMBOL_STRUCT ||
-            definition.kind == SYMBOL_CLASS ||
-            definition.kind == SYMBOL_INTERFACE ||
-            definition.kind == SYMBOL_ENUM ||
-            definition.kind == SYMBOL_ERROR) {
+        if (definition.kind == SYMBOL_STRUCT || definition.kind == SYMBOL_CLASS || definition.kind == SYMBOL_INTERFACE || definition.kind == SYMBOL_ENUM || definition.kind == SYMBOL_ERROR) {
             return definition;
         }
         return null;
     }
 
-    method __imported_type(
-        source -> WorkspaceSource,
-        type_name -> String
-    ) -> SymbolDefinition {
+    method __imported_type(source -> WorkspaceSource, type_name -> String) -> SymbolDefinition {
         let block -> BlockNode = source.result.syntax.ast;
         let i -> Int = 0;
         let count -> Int = 0;
@@ -306,39 +277,22 @@ class FrontendWorkspace {
                 if (import_node.symbols is !null) {
                     let j -> Int = 0;
                     while (j < import_node.symbols.length()) {
-                        let imported -> ImportSymbolNode =
-                            import_node.symbols[j];
-                        let visible_name -> String =
-                            imported.name_tok.value;
+                        let imported -> ImportSymbolNode = import_node.symbols[j];
+                        let visible_name -> String = imported.name_tok.value;
                         if (imported.alias_tok is !null) {
                             visible_name = imported.alias_tok.value;
                         }
                         if (visible_name == type_name) {
-                            return self.__resolve_import(
-                                source,
-                                import_node.path_tok.value,
-                                imported.name_tok.value
-                            );
+                            return self.__resolve_import(source, import_node.path_tok.value, imported.name_tok.value);
                         }
-                        if (imported.name_tok.type ==
-                            WhitelangTokens.TOK_MUL) {
-                            let resolved -> SymbolDefinition =
-                                self.__resolve_import(
-                                    source,
-                                    import_node.path_tok.value,
-                                    type_name
-                                );
+                        if (imported.name_tok.type == WhitelangTokens.TOK_MUL) {
+                            let resolved -> SymbolDefinition = self.__resolve_import( source, import_node.path_tok.value, type_name );
                             if (resolved is !null) { return resolved; }
                         }
                         j += 1;
                     }
                 } else {
-                    let resolved -> SymbolDefinition =
-                        self.__resolve_import(
-                            source,
-                            import_node.path_tok.value,
-                            type_name
-                        );
+                    let resolved -> SymbolDefinition = self.__resolve_import( source, import_node.path_tok.value, type_name );
                     if (resolved is !null) { return resolved; }
                 }
             }
@@ -347,11 +301,7 @@ class FrontendWorkspace {
         return null;
     }
 
-    method __resolve_member(
-        source -> WorkspaceSource,
-        owner_type -> String,
-        name -> String
-    ) -> SymbolDefinition {
+    method __resolve_member(source -> WorkspaceSource, owner_type -> String, name -> String) -> SymbolDefinition {
         if (owner_type.length() == 0) { return null; }
         let current -> String = self.__member_owner(owner_type);
         let context -> WorkspaceSource = source;
@@ -389,15 +339,9 @@ class FrontendWorkspace {
         return null;
     }
 
-    method resolve_member(
-        path -> String,
-        owner_type -> String,
-        name -> String
-    ) -> SymbolDefinition {
+    method resolve_member(path -> String, owner_type -> String, name -> String) -> SymbolDefinition {
         let source -> WorkspaceSource = self.find(path);
-        if (source is null ||
-            source.result is null ||
-            !source.result.valid) {
+        if (source is null || source.result is null || !source.result.valid) {
             return null;
         }
         return self.__resolve_member(source, owner_type, name);
@@ -480,17 +424,10 @@ class FrontendWorkspace {
         return self.__load_source(self.wl_path + "/std/" + raw_path + ".wl");
     }
 
-    method __resolve_import(
-        source_document -> WorkspaceSource,
-        path -> String,
-        name -> String
-    ) -> SymbolDefinition {
+    method __resolve_import(source_document -> WorkspaceSource, path -> String, name -> String) -> SymbolDefinition {
         if (path is null || path.length() == 0) { return null; }
-        let imported -> WorkspaceSource =
-            self.__import_source(source_document.path, path);
-        if (imported is null ||
-            imported.result is null ||
-            !imported.result.valid) {
+        let imported -> WorkspaceSource = self.__import_source(source_document.path, path);
+        if (imported is null || imported.result is null || !imported.result.valid) {
             return null;
         }
         let key -> String = imported.path + "\n" + name;
@@ -502,11 +439,7 @@ class FrontendWorkspace {
         return definition;
     }
 
-    method __qualified_import(
-        source_document -> WorkspaceSource,
-        qualifier -> String,
-        name -> String
-    ) -> SymbolDefinition {
+    method __qualified_import(source_document -> WorkspaceSource, qualifier -> String, name -> String) -> SymbolDefinition {
         let block -> BlockNode = source_document.result.syntax.ast;
         let i -> Int = 0;
         let count -> Int = 0;
@@ -516,17 +449,12 @@ class FrontendWorkspace {
             if (base.type == NODE_IMPORT) {
                 let import_node -> ImportNode = block.stmts[i];
                 if (import_node.symbols is null) {
-                    let module_name -> String =
-                        __module_name(import_node.path_tok.value);
+                    let module_name -> String = __module_name(import_node.path_tok.value);
                     if (import_node.alias_tok is !null) {
                         module_name = import_node.alias_tok.value;
                     }
                     if (module_name == qualifier) {
-                        return self.__resolve_import(
-                            source_document,
-                            import_node.path_tok.value,
-                            name
-                        );
+                        return self.__resolve_import(source_document, import_node.path_tok.value, name);
                     }
                 }
             }
@@ -535,10 +463,7 @@ class FrontendWorkspace {
         return null;
     }
 
-    method __star_import(
-        source_document -> WorkspaceSource,
-        name -> String
-    ) -> SymbolDefinition {
+    method __star_import(source_document -> WorkspaceSource, name -> String) -> SymbolDefinition {
         let block -> BlockNode = source_document.result.syntax.ast;
         let i -> Int = 0;
         let count -> Int = 0;
@@ -552,12 +477,7 @@ class FrontendWorkspace {
                     while (j < import_node.symbols.length()) {
                         let imported -> ImportSymbolNode = import_node.symbols[j];
                         if (imported.name_tok.type == WhitelangTokens.TOK_MUL) {
-                            let definition -> SymbolDefinition =
-                                self.__resolve_import(
-                                    source_document,
-                                    import_node.path_tok.value,
-                                    name
-                                );
+                            let definition -> SymbolDefinition = self.__resolve_import( source_document, import_node.path_tok.value, name );
                             if (definition is !null) { return definition; }
                             break;
                         }
@@ -578,40 +498,23 @@ class FrontendWorkspace {
         return self.__resolve_import(source_document, "dict", name);
     }
 
-    method definition(
-        path -> String,
-        line -> Int,
-        utf16_column -> Int
-    ) -> SymbolDefinition {
+    method definition(path -> String, line -> Int, utf16_column -> Int) -> SymbolDefinition {
         let document -> WorkspaceSource = self.find(path);
-        if (document is null ||
-            document.result is null ||
-            !document.result.valid) {
+        if (document is null || document.result is null || !document.result.valid) {
             return null;
         }
 
-        let reference -> SymbolReference =
-            reference_at(document.result.semantics, line, utf16_column);
+        let reference -> SymbolReference = reference_at(document.result.semantics, line, utf16_column);
         if (reference is null) {
-            return definition_at(
-                document.result.semantics,
-                line,
-                utf16_column
-            );
+            return definition_at(document.result.semantics, line, utf16_column);
         }
 
         return self.resolve_reference(path, reference);
     }
 
-    method resolve_reference(
-        path -> String,
-        reference -> SymbolReference
-    ) -> SymbolDefinition {
+    method resolve_reference(path -> String, reference -> SymbolReference) -> SymbolDefinition {
         let document -> WorkspaceSource = self.find(path);
-        if (document is null ||
-            document.result is null ||
-            !document.result.valid ||
-            reference is null) {
+        if (document is null || document.result is null || !document.result.valid || reference is null) {
             return null;
         }
 
@@ -647,24 +550,14 @@ class FrontendWorkspace {
         if (reference.definition is !null) {
             let definition -> SymbolDefinition = reference.definition;
             if (definition.kind == SYMBOL_IMPORT) {
-                let imported -> SymbolDefinition =
-                    self.__resolve_import(
-                        document,
-                        definition.import_path,
-                        definition.import_name
-                    );
+                let imported -> SymbolDefinition = self.__resolve_import( document, definition.import_path, definition.import_name );
                 if (imported is !null) { return imported; }
             }
             return definition;
         }
 
         if (reference.qualifier.length() > 0) {
-            let qualified -> SymbolDefinition =
-                self.__qualified_import(
-                    document,
-                    reference.qualifier,
-                    reference.name
-                );
+            let qualified -> SymbolDefinition = self.__qualified_import( document, reference.qualifier, reference.name );
             if (qualified is !null) { return qualified; }
         }
         let imported -> SymbolDefinition = self.__star_import(document, reference.name);
@@ -695,13 +588,8 @@ class FrontendWorkspace {
         return imported is !null && self.is_standard_source(imported.path);
     }
 
-    method type_name(
-        path -> String,
-        line -> Int,
-        utf16_column -> Int
-    ) -> String {
-        let definition -> SymbolDefinition =
-            self.definition(path, line, utf16_column);
+    method type_name(path -> String, line -> Int, utf16_column -> Int) -> String {
+        let definition -> SymbolDefinition = self.definition(path, line, utf16_column);
         if (definition is null) { return ""; }
         return definition.type_name;
     }

@@ -23,20 +23,9 @@ const SYMBOL_MODULE     -> Int = 14;
 const SYMBOL_IMPORT     -> Int = 15;
 const SYMBOL_PARAMETER  -> Int = 16;
 
-struct DocumentSymbol(
-    name     -> String,
-    kind     -> Int,
-    span     -> WhitelangExceptions.SourceRange,
-    children -> Vector(Struct)
-)
+struct DocumentSymbol(name     -> String, kind     -> Int, span     -> WhitelangExceptions.SourceRange, children -> Vector(Struct))
 
-struct FrontendDocument(
-    path       -> String,
-    source     -> String,
-    source_map -> SourceMap,
-    ast        -> Struct,
-    symbols    -> Vector(Struct)
-)
+struct FrontendDocument(path       -> String, source     -> String, source_map -> SourceMap, ast        -> Struct, symbols    -> Vector(Struct))
 
 func token_span(path -> String, source_map -> SourceMap, tok -> Token) -> WhitelangExceptions.SourceRange {
     // token columns are UTF-8 byte offsets; protocol consumers use the derived UTF-16 columns
@@ -48,20 +37,10 @@ func token_span(path -> String, source_map -> SourceMap, tok -> Token) -> Whitel
 }
 
 func make_symbol(path -> String, source_map -> SourceMap, tok -> Token, kind -> Int) -> DocumentSymbol {
-    return DocumentSymbol(
-        name=tok.value,
-        kind=kind,
-        span=token_span(path, source_map, tok),
-        children=[]
-    );
+    return DocumentSymbol(name=tok.value, kind=kind, span=token_span(path, source_map, tok), children=[]);
 }
 
-func index_params(
-    path -> String,
-    source_map -> SourceMap,
-    params -> Vector(Struct),
-    out -> Vector(Struct)
-) -> Void {
+func index_params(path -> String, source_map -> SourceMap, params -> Vector(Struct), out -> Vector(Struct)) -> Void {
     if (params is null) { return; }
     let i -> Int = 0;
     while (i < params.length()) {
@@ -73,22 +52,19 @@ func index_params(
 
 func index_method(path -> String, source_map -> SourceMap, node -> MethodDefNode) -> DocumentSymbol {
     if (node.name_tok.value == "$init") {
-        let span -> WhitelangExceptions.SourceRange =
-            source_map.range(path, node.pos.ln, node.pos.col, 4);
+        let span -> WhitelangExceptions.SourceRange = source_map.range(path, node.pos.ln, node.pos.col, 4);
         let symbol -> DocumentSymbol = DocumentSymbol(name="init", kind=SYMBOL_METHOD, span=span, children=[]);
         index_params(path, source_map, node.params, symbol.children);
         return symbol;
     }
     if (node.name_tok.value == "$deinit") {
-        let span -> WhitelangExceptions.SourceRange =
-            source_map.range(path, node.pos.ln, node.pos.col, 6);
+        let span -> WhitelangExceptions.SourceRange = source_map.range(path, node.pos.ln, node.pos.col, 6);
         let symbol -> DocumentSymbol = DocumentSymbol(name="deinit", kind=SYMBOL_METHOD, span=span, children=[]);
         index_params(path, source_map, node.params, symbol.children);
         return symbol;
     }
     if (node.name_tok.value == "$type") {
-        let span -> WhitelangExceptions.SourceRange =
-            source_map.range(path, node.pos.ln, node.pos.col, 4);
+        let span -> WhitelangExceptions.SourceRange = source_map.range(path, node.pos.ln, node.pos.col, 4);
         return DocumentSymbol(name="type", kind=SYMBOL_CONVERSION, span=span, children=[]);
     }
     let symbol -> DocumentSymbol = make_symbol(path, source_map, node.name_tok, SYMBOL_METHOD);
@@ -162,12 +138,9 @@ func index_top_level(path -> String, source_map -> SourceMap, ast -> Struct) -> 
             if (class_node.methods is !null) {
                 let j -> Int = 0;
                 while (j < class_node.methods.length()) {
-                    let method_node -> MethodDefNode =
-                        class_node.methods[j];
+                    let method_node -> MethodDefNode = class_node.methods[j];
                     if (method_node.name_tok.value != "$field_init") {
-                        symbol.children.append(
-                            index_method(path, source_map, method_node)
-                        );
+                        symbol.children.append(index_method(path, source_map, method_node));
                     }
                     j += 1;
                 }
@@ -181,23 +154,19 @@ func index_top_level(path -> String, source_map -> SourceMap, ast -> Struct) -> 
                 enum_kind = SYMBOL_ERROR;
                 field_kind = SYMBOL_ERROR_CASE;
             }
-            let symbol -> DocumentSymbol =
-                make_symbol(path, source_map, enum_node.name_tok, enum_kind);
+            let symbol -> DocumentSymbol = make_symbol(path, source_map, enum_node.name_tok, enum_kind);
             if (enum_node.fields is !null) {
                 let j -> Int = 0;
                 while (j < enum_node.fields.length()) {
                     let enum_field -> EnumFieldNode = enum_node.fields[j];
-                    symbol.children.append(
-                        make_symbol(path, source_map, enum_field.name_tok, field_kind)
-                    );
+                    symbol.children.append(make_symbol(path, source_map, enum_field.name_tok, field_kind));
                     j += 1;
                 }
             }
             result.append(symbol);
         } else if (base.type == NODE_INTERFACE_DEF) {
             let interface_node -> InterfaceDefNode = node;
-            let symbol -> DocumentSymbol =
-                make_symbol(path, source_map, interface_node.name_tok, SYMBOL_INTERFACE);
+            let symbol -> DocumentSymbol = make_symbol(path, source_map, interface_node.name_tok, SYMBOL_INTERFACE);
             if (interface_node.methods is !null) {
                 let j -> Int = 0;
                 while (j < interface_node.methods.length()) {
@@ -218,11 +187,5 @@ func parse_document(path -> String, source -> String) -> FrontendDocument {
     let lexer -> Lexer = new_lexer(path, source);
     let parser -> Parser = Parser(lexer=lexer, current_tok=get_next_token(lexer), nesting=0);
     let ast -> Struct = parse(parser);
-    return FrontendDocument(
-        path=path,
-        source=source,
-        source_map=source_map,
-        ast=ast,
-        symbols=index_top_level(path, source_map, ast)
-    );
+    return FrontendDocument(path=path, source=source, source_map=source_map, ast=ast, symbols=index_top_level(path, source_map, ast));
 }

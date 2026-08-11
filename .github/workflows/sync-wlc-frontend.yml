@@ -72,7 +72,7 @@ jobs:
           for file in "${files[@]}"; do
             cp "upstream/$file" "vendor/wlc-frontend/$(basename "$file")"
           done
-          printf 'repository=https://github.com/pangbai520/White-Language\ncommit=%s\n' "$latest" > "$revision_file"
+          printf 'repository=https://github.com/whitelanguage/white\ncommit=%s\n' "$latest" > "$revision_file"
 
           echo "changed=true" >> "$GITHUB_OUTPUT"
           echo "revision=$latest" >> "$GITHUB_OUTPUT"

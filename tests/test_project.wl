@@ -2,7 +2,6 @@
 // File: tests/test_project.wl
 // Focus: Resolving named, qualified, and star imports across open source files.
 
-import "builtin"
 import "../internal/frontend/_pkg.wl" as source
 
 func main() -> Int {
@@ -21,14 +20,14 @@ func main() -> Int {
     );
     let named -> source.SymbolDefinition = project.definition("project/named.wl", 1, 28);
     if (named is null) {
-        builtin.print("FAIL: named import missing");
+        print("FAIL: named import missing");
         return 1;
     }
     if (named.name != "add" ||
         named.range.file != "project/math.wl" ||
         named.range.start.utf16_column != 5 ||
         project.type_name("project/named.wl", 1, 28) != "Int") {
-        builtin.print("FAIL: named import definition");
+        print("FAIL: named import definition");
         return 1;
     }
 
@@ -40,11 +39,11 @@ func main() -> Int {
     );
     let qualified -> source.SymbolDefinition = project.definition("project/qualified.wl", 1, 33);
     if (qualified is null) {
-        builtin.print("FAIL: qualified import missing");
+        print("FAIL: qualified import missing");
         return 1;
     }
     if (qualified.name != "add" || qualified.range.file != "project/math.wl") {
-        builtin.print("FAIL: qualified import definition");
+        print("FAIL: qualified import definition");
         return 1;
     }
 
@@ -58,7 +57,7 @@ func main() -> Int {
     if (star is null ||
         star.name != "add" ||
         star.range.file != "project/math.wl") {
-        builtin.print("FAIL: star import definition");
+        print("FAIL: star import definition");
         return 1;
     }
 
@@ -78,7 +77,7 @@ func main() -> Int {
     if (later_star is null ||
         later_star.name != "LIMIT" ||
         later_star.range.file != "project/constants.wl") {
-        builtin.print("FAIL: multiple star imports");
+        print("FAIL: multiple star imports");
         return 1;
     }
 
@@ -86,10 +85,10 @@ func main() -> Int {
     project.update(lazy_path, 1, "import answer from \"lazy_dep.wl\"\nfunc main() -> Int { return answer(); }\n");
     let lazy -> source.SymbolDefinition = project.definition(lazy_path, 1, 29);
     if (lazy is null || lazy.name != "answer" || !lazy.range.file.ends_with("tests/fixtures/lazy_dep.wl")) {
-        builtin.print("FAIL: unopened relative import");
+        print("FAIL: unopened relative import");
         return 1;
     }
 
-    builtin.print("PASS: frontend project");
+    print("PASS: frontend project");
     return 0;
 }

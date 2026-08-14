@@ -22,6 +22,7 @@ const SYMBOL_CONVERSION -> Int = 13;
 const SYMBOL_MODULE     -> Int = 14;
 const SYMBOL_IMPORT     -> Int = 15;
 const SYMBOL_PARAMETER  -> Int = 16;
+const SYMBOL_TYPE_PARAMETER -> Int = 17;
 
 struct DocumentSymbol(name     -> String, kind     -> Int, span     -> WhitelangExceptions.SourceRange, children -> Vector(Struct))
 

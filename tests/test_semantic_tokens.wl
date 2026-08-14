@@ -2,7 +2,6 @@
 // File: tests/test_semantic_tokens.wl
 // Focus: Lexer-backed semantic token types, modifiers, comments, and UTF-16 ranges.
 
-import "builtin"
 import "../internal/frontend/_pkg.wl" as source
 import "../internal/analysis/_pkg.wl" as analysis
 
@@ -36,7 +35,7 @@ func main() -> Int {
     let tokens -> Vector(Struct) = analysis.semantic_tokens(result, workspace, path);
 
     if (tokens.length() != 26) {
-        builtin.print("FAIL: semantic token count " + tokens.length());
+        print("FAIL: semantic token count " + tokens.length());
         return 1;
     }
 
@@ -45,7 +44,7 @@ func main() -> Int {
         annotation.line != 0 ||
         annotation.character != 1 ||
         annotation.length != 9) {
-        builtin.print("FAIL: annotation token");
+        print("FAIL: annotation token");
         return 1;
     }
 
@@ -54,7 +53,7 @@ func main() -> Int {
         constant.modifiers.length() != 2 ||
         constant.modifiers[0] != "declaration" ||
         constant.modifiers[1] != "readonly") {
-        builtin.print("FAIL: constant declaration token");
+        print("FAIL: constant declaration token");
         return 1;
     }
 
@@ -66,7 +65,7 @@ func main() -> Int {
         parameter.token_type != "parameter" ||
         parameter.modifiers.length() != 1 ||
         parameter.modifiers[0] != "declaration") {
-        builtin.print("FAIL: callable declaration tokens");
+        print("FAIL: callable declaration tokens");
         return 1;
     }
 
@@ -75,7 +74,7 @@ func main() -> Int {
         comment.line != 3 ||
         comment.character != 4 ||
         comment.length != 7) {
-        builtin.print("FAIL: comment token");
+        print("FAIL: comment token");
         return 1;
     }
 
@@ -84,7 +83,7 @@ func main() -> Int {
         string_value.line != 4 ||
         string_value.character != 25 ||
         string_value.length != 4) {
-        builtin.print("FAIL: UTF-16 string token");
+        print("FAIL: UTF-16 string token");
         return 1;
     }
 
@@ -95,7 +94,7 @@ func main() -> Int {
         constant_use.token_type != "variable" ||
         constant_use.modifiers.length() != 1 ||
         constant_use.modifiers[0] != "readonly") {
-        builtin.print("FAIL: semantic reference tokens");
+        print("FAIL: semantic reference tokens");
         return 1;
     }
 
@@ -113,7 +112,7 @@ func main() -> Int {
     );
     let imported_tokens -> Vector(Struct) = analysis.semantic_tokens(imported, workspace, imported_path);
     if (!has_token(imported_tokens, 0, 7, "function") || !has_token(imported_tokens, 1, 28, "function")) {
-        builtin.print("FAIL: imported function token");
+        print("FAIL: imported function token");
         return 1;
     }
 
@@ -121,7 +120,7 @@ func main() -> Int {
     let qualified -> source.FrontendResult = workspace.update(qualified_path, 1, "import \"math.wl\" as math\nfunc main() -> Int { return math.add(1, 2); }\n");
     let qualified_tokens -> Vector(Struct) = analysis.semantic_tokens(qualified, workspace, qualified_path);
     if (!has_token(qualified_tokens, 0, 20, "namespace") || !has_token(qualified_tokens, 1, 28, "namespace") || !has_token(qualified_tokens, 1, 33, "function")) {
-        builtin.print("FAIL: module namespace token");
+        print("FAIL: module namespace token");
         return 1;
     }
 
@@ -129,7 +128,7 @@ func main() -> Int {
     let alias -> source.FrontendResult = workspace.update(alias_path, 1, "import add as sum from \"math.wl\"\nfunc main() -> Int { return sum(1, 2); }\n");
     let alias_tokens -> Vector(Struct) = analysis.semantic_tokens(alias, workspace, alias_path);
     if (!has_token(alias_tokens, 0, 7, "function") || !has_token(alias_tokens, 0, 14, "function") || !has_token(alias_tokens, 1, 28, "function")) {
-        builtin.print("FAIL: imported alias token");
+        print("FAIL: imported alias token");
         return 1;
     }
 
@@ -142,14 +141,14 @@ func main() -> Int {
     let contextual_tokens -> Vector(Struct) = analysis.semantic_tokens(contextual, workspace, contextual_path);
     if (!has_token(contextual_tokens, 0, 9, "parameter") ||
         !has_token(contextual_tokens, 0, 38, "parameter")) {
-        builtin.print("FAIL: contextual type token");
+        print("FAIL: contextual type token");
         return 1;
     }
 
     let named -> source.FrontendResult = workspace.update("named.wl", 1, "struct Pair(value -> Int, type -> Int)\nfunc make() -> Pair { return Pair(value=1, type=2); }\n");
     let named_tokens -> Vector(Struct) = analysis.semantic_tokens(named, workspace, "named.wl");
     if (!has_token(named_tokens, 0, 26, "property") || !has_token(named_tokens, 1, 43, "parameter")) {
-        builtin.print("FAIL: contextual type label");
+        print("FAIL: contextual type label");
         return 1;
     }
 
@@ -157,7 +156,7 @@ func main() -> Int {
     let invalid -> source.FrontendResult = workspace.update(invalid_path, 1, "func broken( -> Int { return 1; }\n");
     let invalid_tokens -> Vector(Struct) = analysis.semantic_tokens(invalid, workspace, invalid_path);
     if (invalid.valid || !has_token(invalid_tokens, 0, 0, "keyword") || !has_token(invalid_tokens, 0, 16, "type")) {
-        builtin.print("FAIL: invalid source token fallback");
+        print("FAIL: invalid source token fallback");
         return 1;
     }
 
@@ -165,10 +164,10 @@ func main() -> Int {
     let prelude -> source.FrontendResult = workspace.update(prelude_path, 1, "func main() -> Int { print(\"x\"); let values -> Dict = Dict(1); return 0; }\nfunc fail() -> Void? { throw Error.InvalidArgument; }\n");
     let prelude_tokens -> Vector(Struct) = analysis.semantic_tokens(prelude, workspace, prelude_path);
     if (!has_token(prelude_tokens, 0, 21, "function") || !has_token(prelude_tokens, 0, 47, "class") || !has_token(prelude_tokens, 0, 54, "class") || !has_token(prelude_tokens, 1, 29, "enum") || !has_token(prelude_tokens, 1, 35, "enumMember")) {
-        builtin.print("FAIL: prelude symbol token");
+        print("FAIL: prelude symbol token");
         return 1;
     }
 
-    builtin.print("PASS: semantic tokens");
+    print("PASS: semantic tokens");
     return 0;
 }

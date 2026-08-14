@@ -1,49 +1,48 @@
-# Connecting an editor to wlls
+# editor protocol
 
-`wlls` uses the Language Server Protocol(LSP) over stdin and stdout. Start one process for each editor workspace:
+`wlls` implements the Language Server Protocol (LSP) over standard input and
+standard output. An editor normally starts one server process for each
+workspace:
 
 ```text
 wlls --stdio
 ```
 
-Messages use JSON-RPC 2.0 and the standard `Content-Length` framing defined by LSP. Protocol traffic is written only to stdout. Treat stderr as a separate log stream. A frame body is limited to 64 MiB and its headers to 8 KiB; malformed, duplicate, or overflowing `Content-Length` fields close the session.
+Messages use JSON-RPC 2.0 and the `Content-Length` framing defined by LSP.
+Protocol messages are written only to stdout. Stderr is reserved for logs and
+must be read separately by the client.
 
-Use an existing LSP client library whenever the editor has one. The server does not require a White Language-specific transport adapter.
+Use the editor's existing LSP client library when one is available. `wlls` does
+not require a White Language-specific transport layer.
 
-## What's actually working
+## Capabilities
 
-Check the `initialize` result to see what's currently supported:
+The `initialize` response is the authoritative list of capabilities supported
+by the running server. The current implementation provides:
 
-- UTF-16 positions
-- full document synchronization
-- open and close notifications
-- push diagnostics
-- document symbols
-- go to definition
-- full semantic tokens
-- semantic-token refresh after project changes
+```text
+full-text document synchronization
+syntax diagnostics
+document symbols
+go to definition
+full semantic tokens
+semantic-token refresh after project changes
+```
 
-Incremental document changes, semantic-token deltas, completion, hover, references, rename, formatting, and cancellation are not implemented yet. Don't assume they exist—check the advertised capabilities first.
+Positions use UTF-16 code units, as required by most LSP clients. Incremental
+document changes, semantic-token deltas, completion, hover, references, rename,
+formatting, and request cancellation are not implemented yet.
 
-## Session lifecycle
+## Starting a session
 
-A client follows the standard LSP flow:
+A client starts a session in the usual LSP order:
 
-1. send the `initialize` request;
+1. send `initialize`;
 2. send the `initialized` notification;
-3. synchronize documents with `textDocument/didOpen`,
-   `textDocument/didChange`, and `textDocument/didClose`;
-4. send language-feature requests as needed;
-5. send the `shutdown` request;
-6. send the `exit` notification.
+3. synchronize open documents;
+4. send language-feature requests as needed.
 
-`textDocument/didOpen`, `didChange`, `didClose`, `initialized`, and `exit` are notifications and don't expect responses. Syntax diagnostics are published via `textDocument/publishDiagnostics` after an open or accepted full-text change. Closing a document clears the diagnostics out.
-
-Document identifiers are standard `file` URIs. Local, Windows drive, and UNC paths are supported. Versions must increase as the document changes. The server ignores an older or duplicate full-text update rather than overwriting a newer in-memory document.
-
-## Supported requests
-
-The server only implements these requests right now:
+The server currently accepts these requests:
 
 ```text
 initialize
@@ -53,23 +52,108 @@ textDocument/definition
 textDocument/semanticTokens/full
 ```
 
-Definitions come back as standard LSP `Location` values. Document symbols use numeric `SymbolKind` values and include both `range` and `selectionRange`.
+It also accepts these notifications:
 
-Semantic tokens use the legend returned by `initialize`. The response is a standard `SemanticTokens` object where the `data` field contains delta-encoded five-integer token records:
+```text
+initialized
+textDocument/didOpen
+textDocument/didChange
+textDocument/didClose
+exit
+```
+
+Notifications do not receive responses. A clean shutdown consists of a
+`shutdown` request followed by an `exit` notification.
+
+## Documents
+
+Documents are identified by standard `file` URIs. Local paths, Windows drive
+paths, and UNC paths are supported.
+
+`textDocument/didOpen` supplies the initial text and version. A change must
+contain the complete new document because the server advertises full-text
+synchronization. Document versions must increase; an old or duplicate update
+is ignored rather than allowed to replace a newer in-memory copy.
+
+An open document belongs to the editor. Changes found on disk do not overwrite
+an unsaved buffer. After `textDocument/didClose`, the in-memory copy is removed
+and a later query may load the file from disk again.
+
+## Diagnostics
+
+After a document is opened or changed, syntax errors are published with
+`textDocument/publishDiagnostics`. Closing a document publishes an empty list
+to clear its diagnostics.
+
+Diagnostics use LSP ranges and UTF-16 columns. Parsing errors do not prevent
+the server from producing lexer-backed semantic tokens for source which can
+still be classified safely.
+
+## Symbols and definitions
+
+`textDocument/documentSymbol` returns standard `DocumentSymbol` values.
+`kind` uses the numeric LSP `SymbolKind`, and every symbol contains both
+`range` and `selectionRange`.
+
+`textDocument/definition` returns standard LSP `Location` values. Definitions
+may point into another project file or into the standard library. An unresolved
+name returns no location rather than a fabricated result.
+
+## Semantic tokens
+
+`textDocument/semanticTokens/full` returns a standard `SemanticTokens` object.
+The `data` field contains delta-encoded groups of five integers:
 
 ```text
 deltaLine, deltaStart, length, tokenType, tokenModifiers
 ```
 
-Token positions and lengths use UTF-16 code units, matching what the server advertised.
+Lines, columns, and token lengths are measured in UTF-16 code units. Token type
+indexes and modifier bits refer to the legend returned by `initialize`.
 
-The current token types are `keyword`, `type`, `class`, `struct`, `interface`, `enum`, `enumMember`, `function`, `method`, `parameter`, `variable`, `property`, `string`, `number`, `comment`, `operator`, `decorator`, and `namespace`. Module names and module aliases use `namespace`; named imports use the type of the symbol they resolve to. Files with syntax errors still receive lexer-backed tokens for the portions that can be classified safely.
+The current token types are:
 
-If the client advertises `workspace.semanticTokens.refreshSupport`, wlls sends `workspace/semanticTokens/refresh` when a document or dependency changes. If the client also supports dynamic watched-file registration, wlls registers `**/*.wl` through `client/registerCapability`. Clients must answer both server requests normally.
+```text
+keyword       type          class         struct
+interface     enum          enumMember    function
+method        parameter     variable      property
+string        number        comment       operator
+decorator     namespace     typeParameter
+```
+
+Module names and module aliases use `namespace`. A named import uses the token
+type of the symbol it resolves to. Generic parameter declarations and their
+references use `typeParameter`.
+
+If the client advertises `workspace.semanticTokens.refreshSupport`, `wlls`
+sends `workspace/semanticTokens/refresh` after an indexed document or dependency
+changes. A client which advertises dynamic watched-file registration also
+receives a `client/registerCapability` request for `**/*.wl`. Both are server
+requests and require normal JSON-RPC responses.
+
+## Project files
+
+Relative `.wl` imports and standard-library imports are loaded from disk when
+an analysis request first needs them. Standard-library lookup follows `wlc`:
+
+```text
+WL_PATH/std/<name>/_pkg.wl
+WL_PATH/std/<name>.wl
+```
+
+`WL_PATH` must point to the White Language installation used by the project.
+The implicit `errors`, `builtin`, and `dict` prelude is indexed in the same way
+as it is by `wlc`. Prelude symbols and symbols loaded from `std` receive the
+`defaultLibrary` semantic-token modifier.
+
+The server does not scan every White Language file below the workspace root.
+It indexes open documents and files reachable through their imports. Watched
+file changes invalidate unopened dependencies before semantic tokens are
+refreshed.
 
 ## VS Code
 
-A VS Code extension should just boot up `wlls` using `vscode-languageclient`:
+The VS Code extension can start `wlls` through `vscode-languageclient`:
 
 ```ts
 const serverOptions = {
@@ -91,18 +175,22 @@ const client = new LanguageClient(
 await client.start();
 ```
 
-Don't go registering separate VS Code providers for diagnostics, symbols, definitions, or semantic tokens while the client is active. Those get handled automatically by the capabilities returned from `initialize`.
+The language client registers diagnostics, symbols, definitions, and semantic
+tokens from the capabilities returned by `initialize`. Registering separate VS
+Code providers for the same features causes the two implementations to compete.
 
-Feel free to throw in a TextMate grammar for immediate lexical colors while the server spins up, but keep all semantic logic inside `wlls`. Don't build another White Language parser into the plugin.
+A TextMate grammar may provide immediate lexical colors while the server is
+starting. Name resolution and all other semantic classification remain in
+`wlls`; the extension does not need its own White Language parser.
 
-## Workspace quirks & gotchas
+## Limits worth remembering
 
-Relative `.wl` imports and standard-library imports are loaded from disk when a query first needs them. Standard-library lookup follows `wlc`: package entry points are checked under `WL_PATH/std/<name>/_pkg.wl` before `WL_PATH/std/<name>.wl`. Keep `WL_PATH` pointed at the White Language installation used to build the project.
+Requests are processed synchronously. A client must serialize writes to stdin
+so that frame headers and bodies cannot become interleaved.
 
-Name resolution includes the same implicit `errors`, `builtin`, and `dict` prelude used by `wlc`. Prelude symbols and symbols resolved from `std` carry the `defaultLibrary` semantic-token modifier.
+A message body is limited to 64 MiB and the header block to 8 KiB. A malformed,
+duplicate, or overflowing `Content-Length` field closes the session.
 
-Watched changes invalidate unopened dependency files before semantic tokens are refreshed. Open files remain owned by `didOpen` and `didChange`, so an editor's unsaved buffer is never replaced with the on-disk copy.
-
-The server doesn't scan every `.wl` file under the workspace root. Files that aren't open and aren't reachable through an import stay unindexed.
-
-Requests are handled synchronously. Queue your writes to stdin so message bodies don't get interleaved. If the process crashes, drop pending requests, spin up a fresh server, and reopen whatever documents the user currently has open.
+If the server process exits unexpectedly, outstanding requests can no longer
+complete. The client should discard them, start a new process, and reopen the
+documents which are still active in the editor.

@@ -14,6 +14,7 @@ func symbol_kind(kind -> Int) -> Int {
     if (kind == source.SYMBOL_ENUM || kind == source.SYMBOL_ERROR) { return 10; }
     if (kind == source.SYMBOL_ENUM_CASE || kind == source.SYMBOL_ERROR_CASE) { return 22; }
     if (kind == source.SYMBOL_INTERFACE) { return 11; }
+    if (kind == source.SYMBOL_TYPE_PARAMETER) { return 26; }
     return 13;
 }
 

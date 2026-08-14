@@ -2,7 +2,6 @@
 // File: tests/test_token_kinds.wl
 // Focus: Semantic classifications for White Language declarations and members.
 
-import "builtin"
 import "../internal/frontend/_pkg.wl" as source
 import "../internal/analysis/_pkg.wl" as analysis
 
@@ -61,7 +60,7 @@ func main() -> Int {
     let i -> Int = 0;
     while (i < required.length()) {
         if (!has_token_type(tokens, required[i])) {
-            builtin.print("FAIL: missing semantic token type " + required[i]);
+            print("FAIL: missing semantic token type " + required[i]);
             return 1;
         }
         i += 1;
@@ -69,16 +68,16 @@ func main() -> Int {
     let wide_type -> analysis.SemanticToken = token_at(tokens, 5, 16);
     let vector_type -> analysis.SemanticToken = token_at(tokens, 6, 18);
     if (wide_type is null || vector_type is null || wide_type.token_type != "type" || vector_type.token_type != "type") {
-        builtin.print("FAIL: named builtin types");
+        print("FAIL: named builtin types");
         return 1;
     }
     let conversion_keyword -> analysis.SemanticToken = token_at(tokens, 8, 4);
     let conversion_type -> analysis.SemanticToken = token_at(tokens, 8, 9);
     if (conversion_keyword is null || conversion_type is null || conversion_keyword.token_type != "keyword" || conversion_type.token_type != "type") {
-        builtin.print("FAIL: conversion keyword");
+        print("FAIL: conversion keyword");
         return 1;
     }
 
-    builtin.print("PASS: semantic token kinds");
+    print("PASS: semantic token kinds");
     return 0;
 }

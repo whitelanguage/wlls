@@ -2,7 +2,6 @@
 // File: tests/test_positions.wl
 // Focus: UTF-8 byte, Unicode scalar, and UTF-16 source columns.
 
-import "builtin"
 import "../internal/compiler/_pkg.wl" as compiler
 
 func main() -> Int {
@@ -13,7 +12,7 @@ func main() -> Int {
         after_cjk.byte_column != 4 ||
         after_cjk.unicode_column != 2 ||
         after_cjk.utf16_column != 2) {
-        builtin.print("FAIL: CJK source position");
+        print("FAIL: CJK source position");
         return 1;
     }
 
@@ -22,7 +21,7 @@ func main() -> Int {
         after_emoji.byte_column != 8 ||
         after_emoji.unicode_column != 3 ||
         after_emoji.utf16_column != 4) {
-        builtin.print("FAIL: supplementary source position");
+        print("FAIL: supplementary source position");
         return 1;
     }
 
@@ -31,7 +30,7 @@ func main() -> Int {
         second_line.byte_column != 1 ||
         second_line.unicode_column != 1 ||
         second_line.utf16_column != 1) {
-        builtin.print("FAIL: multiline source position");
+        print("FAIL: multiline source position");
         return 1;
     }
 
@@ -39,7 +38,7 @@ func main() -> Int {
     if (range.start.utf16_column != 1 ||
         range.end.utf16_column != 4 ||
         range.end.byte_column != 8) {
-        builtin.print("FAIL: UTF-16 source range");
+        print("FAIL: UTF-16 source range");
         return 1;
     }
 
@@ -61,10 +60,10 @@ func main() -> Int {
     compiler.WhitelangExceptions.reset_errors();
 
     if (diagnostic.code != "E2001" || diagnostic.range.start.utf16_column != 4 || diagnostic.range.end.utf16_column != 7) {
-        builtin.print("FAIL: Unicode diagnostic range");
+        print("FAIL: Unicode diagnostic range");
         return 1;
     }
 
-    builtin.print("PASS: source positions");
+    print("PASS: source positions");
     return 0;
 }

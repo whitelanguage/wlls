@@ -1,6 +1,6 @@
 # wlls
 
-`wlls` is the White Language language server. 
+`wlls` is the White Language language server.
 
 Currently, it supports:
 
@@ -22,7 +22,7 @@ wlls --stdio
 
 ## Building
 
-Build from this repo with an White Language toolchain:
+Build from this repository with a White Language toolchain:
 
 ```sh
 wlc wlls.wl -o wlls

@@ -2,7 +2,6 @@
 // File: tests/test_semantic.wl
 // Focus: Resolving local and top-level references without lowering LLVM IR.
 
-import "builtin"
 import "../internal/frontend/_pkg.wl" as source
 
 func main() -> Int {
@@ -21,7 +20,7 @@ func main() -> Int {
         value.name != "value" ||
         value.range.start.line != 1 ||
         value.range.start.utf16_column != 9) {
-        builtin.print("FAIL: parameter definition");
+        print("FAIL: parameter definition");
         return 1;
     }
 
@@ -31,7 +30,7 @@ func main() -> Int {
         base.range.start.line != 0 ||
         base.range.start.utf16_column != 6 ||
         source.type_at(semantics, 2, 30) != "Int") {
-        builtin.print("FAIL: top-level definition");
+        print("FAIL: top-level definition");
         return 1;
     }
 
@@ -41,7 +40,7 @@ func main() -> Int {
         next.range.start.line != 2 ||
         next.range.start.utf16_column != 8 ||
         source.type_at(semantics, 3, 11) != "Int") {
-        builtin.print("FAIL: local definition");
+        print("FAIL: local definition");
         return 1;
     }
 
@@ -59,7 +58,7 @@ func main() -> Int {
         field.kind != source.SYMBOL_FIELD ||
         field.range.start.line != 1 ||
         field.range.start.utf16_column != 8) {
-        builtin.print("FAIL: class field definition");
+        print("FAIL: class field definition");
         return 1;
     }
 
@@ -78,7 +77,7 @@ func main() -> Int {
         empty_semantics.definitions.length() != 1 ||
         variant is null ||
         variant.name != "Variant") {
-        builtin.print("FAIL: empty intrinsic struct");
+        print("FAIL: empty intrinsic struct");
         return 1;
     }
 
@@ -104,10 +103,10 @@ func main() -> Int {
         age_field.kind != source.SYMBOL_FIELD ||
         name_field.range.start.line != 1 ||
         age_field.range.start.line != 2) {
-        builtin.print("FAIL: constructor field initialization");
+        print("FAIL: constructor field initialization");
         return 1;
     }
 
-    builtin.print("PASS: semantic definitions");
+    print("PASS: semantic definitions");
     return 0;
 }

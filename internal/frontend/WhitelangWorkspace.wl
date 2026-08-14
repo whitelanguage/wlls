@@ -150,6 +150,9 @@ class FrontendWorkspace {
         if (result.ends_with("?")) {
             result = result.slice(0, result.length() - 1);
         }
+        let generic_start -> Int = 0;
+        while (generic_start < result.length() && result[generic_start] != '(') { generic_start += 1; }
+        if (generic_start < result.length()) { result = result.slice(0, generic_start); }
         return result;
     }
 
@@ -243,9 +246,9 @@ class FrontendWorkspace {
                         let class_node -> ClassDefNode = block.stmts[j];
                         if (class_node.parent_tok is !null) {
                             let class_name -> String = class_node.name_tok.value;
-                            self.file_parents.put(source.path + "\n" + class_name, class_node.parent_tok.value);
+                            self.file_parents.put(source.path + "\n" + class_name, type_text(class_node.parent_tok));
                             let existing_parent -> String = self.parents[class_name];
-                            if (existing_parent is null) { self.parents.put(class_name, class_node.parent_tok.value); }
+                            if (existing_parent is null) { self.parents.put(class_name, type_text(class_node.parent_tok)); }
                             else { self.parents.put(class_name, ""); }
                         }
                     }
@@ -316,7 +319,7 @@ class FrontendWorkspace {
                 let parent -> String = self.file_parents[type_file + "\n" + current];
                 context = self.find(type_file);
                 if (parent is null || context is null) { break; }
-                current = parent;
+                current = self.__member_owner(parent);
             } else {
                 let owner -> SymbolDefinition = self.__local_type(context, current);
                 if (owner is null) { owner = self.__imported_type(context, current); }
@@ -326,14 +329,14 @@ class FrontendWorkspace {
                     let parent -> String = self.file_parents[owner.range.file + "\n" + current];
                     context = self.find(owner.range.file);
                     if (parent is null || context is null) { break; }
-                    current = parent;
+                    current = self.__member_owner(parent);
                     continue;
                 }
                 let candidate -> SymbolDefinition = self.members[key];
                 if (candidate is !null && candidate.range is !null) { return candidate; }
                 let parent -> String = self.parents[current];
                 if (parent is null || parent.length() == 0) { break; }
-                current = parent;
+                current = self.__member_owner(parent);
             }
         }
         return null;

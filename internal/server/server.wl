@@ -104,7 +104,7 @@ class Server {
     }
 
     method initialize_result() -> String {
-        return "{\"capabilities\":{\"positionEncoding\":\"utf-16\",\"textDocumentSync\":{\"openClose\":true,\"change\":1},\"documentSymbolProvider\":true,\"definitionProvider\":true,\"semanticTokensProvider\":{\"legend\":{\"tokenTypes\":[\"keyword\",\"type\",\"class\",\"struct\",\"interface\",\"enum\",\"enumMember\",\"function\",\"method\",\"parameter\",\"variable\",\"property\",\"string\",\"number\",\"comment\",\"operator\",\"decorator\",\"namespace\"],\"tokenModifiers\":[\"declaration\",\"definition\",\"readonly\",\"static\",\"defaultLibrary\"]},\"full\":true}},\"serverInfo\":{\"name\":\"wlls\"}}";
+        return "{\"capabilities\":{\"positionEncoding\":\"utf-16\",\"textDocumentSync\":{\"openClose\":true,\"change\":1},\"documentSymbolProvider\":true,\"definitionProvider\":true,\"semanticTokensProvider\":{\"legend\":{\"tokenTypes\":[\"keyword\",\"type\",\"class\",\"struct\",\"interface\",\"enum\",\"enumMember\",\"function\",\"method\",\"parameter\",\"variable\",\"property\",\"string\",\"number\",\"comment\",\"operator\",\"decorator\",\"namespace\",\"typeParameter\"],\"tokenModifiers\":[\"declaration\",\"definition\",\"readonly\",\"static\",\"defaultLibrary\"]},\"full\":true}},\"serverInfo\":{\"name\":\"wlls\"}}";
     }
 
     method handle(message -> String) -> String {

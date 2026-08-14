@@ -102,6 +102,9 @@ func __find_member(document -> SemanticDocument, owner -> String, name -> String
     let current -> String = owner;
     while (current.starts_with("ptr ")) { current = current.slice(4, current.length()); }
     if (current.ends_with("?")) { current = current.slice(0, current.length() - 1); }
+    let generic_start -> Int = 0;
+    while (generic_start < current.length() && current[generic_start] != '(') { generic_start += 1; }
+    if (generic_start < current.length()) { current = current.slice(0, generic_start); }
     let seen -> Dict = Dict(8);
     while (current.length() > 0 && seen[current] is null) {
         seen.put(current, true);
@@ -110,6 +113,9 @@ func __find_member(document -> SemanticDocument, owner -> String, name -> String
         let parent -> String = document.parent_types[current];
         if (parent is null) { break; }
         current = parent;
+        generic_start = 0;
+        while (generic_start < current.length() && current[generic_start] != '(') { generic_start += 1; }
+        if (generic_start < current.length()) { current = current.slice(0, generic_start); }
     }
     return null;
 }
@@ -155,6 +161,17 @@ func type_text(node -> Struct) -> String {
     if (base.type == NODE_FIELD_ACCESS) {
         let access -> FieldAccessNode = node;
         return access.field_name;
+    }
+    if (base.type == NODE_GENERIC_TYPE) {
+        let generic -> GenericTypeNode = node;
+        let result -> String = type_text(generic.base_type) + "(";
+        let i -> Int = 0;
+        while (generic.type_args is !null && i < generic.type_args.length()) {
+            if (i > 0) { result += ", "; }
+            result += type_text(generic.type_args[i]);
+            i += 1;
+        }
+        return result + ")";
     }
     if (base.type == NODE_PTR_TYPE) {
         let pointer -> PointerTypeNode = node;
@@ -232,6 +249,10 @@ func __expression_type(document -> SemanticDocument, scope -> __Scope, node -> S
         let definition -> SymbolDefinition = scope.find(access.name_tok.value);
         if (definition is !null) { return definition.type_name; }
         return access.name_tok.value;
+    }
+    if (base.type == NODE_GENERIC_TYPE) {
+        let generic -> GenericTypeNode = node;
+        return __expression_type(document, scope, generic.base_type);
     }
     if (base.type == NODE_FIELD_ACCESS) {
         let access -> FieldAccessNode = node;
@@ -409,6 +430,14 @@ func __walk_type(document -> SemanticDocument, scope -> __Scope, node -> Struct)
         if (access.name_tok.type == WhitelangTokens.TOK_IDENTIFIER || access.name_tok.type == WhitelangTokens.TOK_TYPE) {
             __record_reference(document, scope, access.name_tok);
         }
+    } else if (base.type == NODE_GENERIC_TYPE) {
+        let generic -> GenericTypeNode = node;
+        __walk_type(document, scope, generic.base_type);
+        let i -> Int = 0;
+        while (generic.type_args is !null && i < generic.type_args.length()) {
+            __walk_type(document, scope, generic.type_args[i]);
+            i += 1;
+        }
     } else if (base.type == NODE_FIELD_ACCESS) {
         let access -> FieldAccessNode = node;
         __walk_type(document, scope, access.obj);
@@ -549,6 +578,8 @@ func __walk_node(document -> SemanticDocument, scope -> __Scope, node -> Struct)
             __walk_node(document, scope, arg.val);
             i += 1;
         }
+    } else if (base.type == NODE_GENERIC_TYPE) {
+        __walk_type(document, scope, node);
     } else if (base.type == NODE_RETURN) {
         let return_node -> ReturnNode = node;
         __walk_node(document, scope, return_node.value);
@@ -657,8 +688,30 @@ func __declare_params(document -> SemanticDocument, scope -> __Scope, params -> 
     }
 }
 
-func __walk_function(document -> SemanticDocument, parent -> __Scope, params -> Vector(Struct), return_type -> Struct, body -> Struct) -> Void {
+func __declare_type_params(document -> SemanticDocument, scope -> __Scope, params -> Vector(Struct)) -> Void {
+    if (params is null) { return; }
+    let i -> Int = 0;
+    while (i < params.length()) {
+        let param -> GenericParamNode = params[i];
+        let definition -> SymbolDefinition = __definition(document, scope, param.name_tok, SYMBOL_TYPE_PARAMETER);
+        definition.type_name = param.name_tok.value;
+        i += 1;
+    }
+    i = 0;
+    while (i < params.length()) {
+        let param -> GenericParamNode = params[i];
+        let j -> Int = 0;
+        while (param.constraints is !null && j < param.constraints.length()) {
+            __walk_type(document, scope, param.constraints[j]);
+            j += 1;
+        }
+        i += 1;
+    }
+}
+
+func __walk_function(document -> SemanticDocument, parent -> __Scope, type_params -> Vector(Struct), params -> Vector(Struct), return_type -> Struct, body -> Struct) -> Void {
     let scope -> __Scope = __Scope(parent);
+    __declare_type_params(document, scope, type_params);
     __declare_params(document, scope, params);
     __walk_type(document, scope, return_type);
     __walk_node(document, scope, body);
@@ -730,7 +783,7 @@ func __declare_top_level(document -> SemanticDocument, scope -> __Scope) -> Void
             let definition -> SymbolDefinition = __definition(document, scope, class_node.name_tok, SYMBOL_CLASS);
             definition.top_level = true;
             definition.type_name = class_node.name_tok.value;
-            if (class_node.parent_tok is !null) { document.parent_types.put(class_node.name_tok.value, class_node.parent_tok.value); }
+            if (class_node.parent_tok is !null) { document.parent_types.put(class_node.name_tok.value, type_text(class_node.parent_tok)); }
         } else if (base.type == NODE_ENUM_DEF) {
             let enum_node -> EnumDefNode = node;
             let kind -> Int = SYMBOL_ENUM;
@@ -783,7 +836,7 @@ func __walk_top_level(document -> SemanticDocument, scope -> __Scope) -> Void {
         if (base.type == NODE_FUNC_DEF) {
             let function_node -> FunctionDefNode = node;
             __walk_annotations(document, scope, function_node.annotations);
-            __walk_function(document, scope, function_node.params, function_node.ret_type_tok, function_node.body);
+            __walk_function(document, scope, function_node.type_params, function_node.params, function_node.ret_type_tok, function_node.body);
         } else if (base.type == NODE_EXTERN_FUNC) {
             let extern_node -> ExternFuncNode = node;
             let function_scope -> __Scope = __Scope(scope);
@@ -812,6 +865,7 @@ func __walk_top_level(document -> SemanticDocument, scope -> __Scope) -> Void {
             let struct_node -> StructDefNode = node;
             __walk_annotations(document, scope, struct_node.annotations);
             let struct_scope -> __Scope = __Scope(scope);
+            __declare_type_params(document, struct_scope, struct_node.type_params);
             let this_definition -> SymbolDefinition = SymbolDefinition("this", SYMBOL_VARIABLE, null);
             this_definition.type_name = struct_node.name_tok.value;
             struct_scope.define(this_definition);
@@ -822,7 +876,7 @@ func __walk_top_level(document -> SemanticDocument, scope -> __Scope) -> Void {
             }
             while (j < count) {
                 let field -> ParamNode = struct_node.fields[j];
-                __walk_type(document, scope, field.type_tok);
+                __walk_type(document, struct_scope, field.type_tok);
                 let definition -> SymbolDefinition = __definition( document, struct_scope, field.name_tok, SYMBOL_FIELD );
                 definition.type_name = type_text(field.type_tok);
                 __register_member(document, struct_node.name_tok.value, definition);
@@ -832,25 +886,23 @@ func __walk_top_level(document -> SemanticDocument, scope -> __Scope) -> Void {
         } else if (base.type == NODE_CLASS_DEF) {
             let class_node -> ClassDefNode = node;
             __walk_annotations(document, scope, class_node.annotations);
-            if (class_node.parent_tok is !null) {
-                __record_reference(document, scope, class_node.parent_tok);
-            }
+            let class_scope -> __Scope = __Scope(scope);
+            __declare_type_params(document, class_scope, class_node.type_params);
+            if (class_node.parent_tok is !null) { __walk_type(document, class_scope, class_node.parent_tok); }
             if (class_node.interfaces is !null) {
                 let j -> Int = 0;
                 while (j < class_node.interfaces.length()) {
-                    let interface_token -> Token = class_node.interfaces[j];
-                    __record_reference(document, scope, interface_token);
+                    __walk_type(document, class_scope, class_node.interfaces[j]);
                     j += 1;
                 }
             }
 
-            let class_scope -> __Scope = __Scope(scope);
             let self_definition -> SymbolDefinition = SymbolDefinition("self", SYMBOL_VARIABLE, null);
             self_definition.type_name = class_node.name_tok.value;
             class_scope.define(self_definition);
             if (class_node.parent_tok is !null) {
                 let super_definition -> SymbolDefinition = SymbolDefinition("$super", SYMBOL_VARIABLE, null);
-                super_definition.type_name = class_node.parent_tok.value;
+                super_definition.type_name = type_text(class_node.parent_tok);
                 class_scope.define(super_definition);
             }
             let j -> Int = 0;
@@ -903,7 +955,7 @@ func __walk_top_level(document -> SemanticDocument, scope -> __Scope) -> Void {
                 let method_node -> MethodDefNode = class_node.methods[j];
                 if (method_node.name_tok.value != "$field_init") {
                     __walk_annotations(document, class_scope, method_node.annotations);
-                    __walk_function(document, class_scope, method_node.params, method_node.return_type, method_node.body);
+                    __walk_function(document, class_scope, method_node.type_params, method_node.params, method_node.return_type, method_node.body);
                 }
                 j += 1;
             }
@@ -929,6 +981,7 @@ func __walk_top_level(document -> SemanticDocument, scope -> __Scope) -> Void {
         } else if (base.type == NODE_INTERFACE_DEF) {
             let interface_node -> InterfaceDefNode = node;
             let interface_scope -> __Scope = __Scope(scope);
+            __declare_type_params(document, interface_scope, interface_node.type_params);
             let j -> Int = 0;
             let count -> Int = 0;
             if (interface_node.methods is !null) {
@@ -940,9 +993,7 @@ func __walk_top_level(document -> SemanticDocument, scope -> __Scope) -> Void {
                 let definition -> SymbolDefinition = __definition( document, interface_scope, method_node.name_tok, SYMBOL_METHOD );
                 definition.type_name = type_text(method_node.return_type);
                 __register_member(document, interface_node.name_tok.value, definition);
-                let method_scope -> __Scope = __Scope(interface_scope);
-                __declare_params(document, method_scope, method_node.params);
-                __walk_type(document, method_scope, method_node.return_type);
+                __walk_function(document, interface_scope, method_node.type_params, method_node.params, method_node.return_type, null);
                 j += 1;
             }
         }

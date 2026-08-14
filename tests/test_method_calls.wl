@@ -2,7 +2,6 @@
 // File: tests/test_method_calls.wl
 // Focus: Semantic indexing of member calls on parameters and local variables.
 
-import "builtin"
 import "../internal/frontend/_pkg.wl" as source
 import "../internal/analysis/_pkg.wl" as analysis
 
@@ -79,13 +78,13 @@ func main() -> Int {
     let workspace -> source.FrontendWorkspace = source.FrontendWorkspace();
     let result -> source.FrontendResult = workspace.update("memory.wl", 1, text);
     if (!result.valid) {
-        builtin.print("FAIL: member call source did not parse");
+        print("FAIL: member call source did not parse");
         return 1;
     }
 
     let tokens -> Vector(Struct) = analysis.semantic_tokens(result, workspace, "memory.wl");
     if (tokens.length() == 0) {
-        builtin.print("FAIL: member calls produced no semantic tokens");
+        print("FAIL: member calls produced no semantic tokens");
         return 1;
     }
 
@@ -98,7 +97,7 @@ func main() -> Int {
         parameter_call.token_type != "method" ||
         local_call.token_type != "method" ||
         fallible_call.token_type != "method") {
-        builtin.print("FAIL: member calls were not classified as methods");
+        print("FAIL: member calls were not classified as methods");
         return 1;
     }
 
@@ -108,7 +107,7 @@ func main() -> Int {
         chained_call is null ||
         chained_field.token_type != "property" ||
         chained_call.token_type != "method") {
-        builtin.print("FAIL: chained member call");
+        print("FAIL: chained member call");
         return 1;
     }
 
@@ -121,14 +120,14 @@ func main() -> Int {
         deep_branch.token_type != "property" ||
         deep_leaf.token_type != "property" ||
         deep_call.token_type != "method") {
-        builtin.print("FAIL: deep member chain");
+        print("FAIL: deep member chain");
         return 1;
     }
 
     let condition_branch -> analysis.SemanticToken = token_at(tokens, 38, 13);
     let condition_leaf -> analysis.SemanticToken = token_at(tokens, 38, 20);
     if (condition_branch is null || condition_leaf is null || condition_branch.token_type != "property" || condition_leaf.token_type != "property") {
-        builtin.print("FAIL: member chain in is condition");
+        print("FAIL: member chain in is condition");
         return 1;
     }
 
@@ -138,7 +137,7 @@ func main() -> Int {
     let indexed_field -> analysis.SemanticToken = token_at(tokens, 52, 21);
     let super_method -> analysis.SemanticToken = token_at(tokens, 52, 40);
     if (annotation_arg is null || annotation_arg.token_type != "variable" || struct_field is null || struct_field.token_type != "property" || vector_element is null || vector_element.token_type != "variable" || indexed_field is null || indexed_field.token_type != "property" || super_method is null || super_method.token_type != "method") {
-        builtin.print("FAIL: semantic expression coverage");
+        print("FAIL: semantic expression coverage");
         return 1;
     }
 
@@ -176,7 +175,7 @@ func main() -> Int {
         external_call is null ||
         external_field.token_type != "property" ||
         external_call.token_type != "method") {
-        builtin.print("FAIL: cross-document member call");
+        print("FAIL: cross-document member call");
         return 1;
     }
 
@@ -187,7 +186,7 @@ func main() -> Int {
     let inherited_tokens -> Vector(Struct) = analysis.semantic_tokens(inherited, workspace, inherited_path);
     let inherited_call -> analysis.SemanticToken = token_at(inherited_tokens, 2, 10);
     if (inherited_call is null || inherited_call.token_type != "method") {
-        builtin.print("FAIL: inherited cross-document member call");
+        print("FAIL: inherited cross-document member call");
         return 1;
     }
 
@@ -196,18 +195,18 @@ func main() -> Int {
     workspace.update("project/box.wl", 1, "import Item from \"item.wl\"\nclass Box {\n    let items -> Vector(Item) = [];\n    method make() -> Item { return null; }\n}\n");
     workspace.update("project/item.wl", 1, "class Item {\n    method flush() -> Void { return; }\n}\n");
     if (workspace.resolve_member("project/box.wl", "Item", "flush") is null) {
-        builtin.print("FAIL: imported member resolution context");
+        print("FAIL: imported member resolution context");
         return 1;
     }
     let compound_tokens -> Vector(Struct) = analysis.semantic_tokens(compound, workspace, compound_path);
     let indexed_call -> analysis.SemanticToken = token_at(compound_tokens, 2, 17);
     let returned_call -> analysis.SemanticToken = token_at(compound_tokens, 3, 15);
     if (indexed_call is null || indexed_call.token_type != "method") {
-        builtin.print("FAIL: late-bound indexed member chain");
+        print("FAIL: late-bound indexed member chain");
         return 1;
     }
     if (returned_call is null || returned_call.token_type != "method") {
-        builtin.print("FAIL: late-bound call result member chain");
+        print("FAIL: late-bound call result member chain");
         return 1;
     }
 
@@ -215,7 +214,7 @@ func main() -> Int {
     let closed_tokens -> Vector(Struct) = analysis.semantic_tokens(external, workspace, external_path);
     let closed_call -> analysis.SemanticToken = token_at(closed_tokens, 2, 18);
     if (closed_call is null || closed_call.token_type != "variable") {
-        builtin.print("FAIL: closed document member remained indexed");
+        print("FAIL: closed document member remained indexed");
         return 1;
     }
 
@@ -225,7 +224,7 @@ func main() -> Int {
     let standard_field -> analysis.SemanticToken = token_at(standard_tokens, 5, 6);
     let standard_method -> analysis.SemanticToken = token_at(standard_tokens, 5, 18);
     if (standard_field is null || standard_method is null || standard_field.token_type != "property" || standard_method.token_type != "method") {
-        builtin.print("FAIL: standard library member call");
+        print("FAIL: standard library member call");
         return 1;
     }
 
@@ -238,10 +237,10 @@ func main() -> Int {
     let json_find -> analysis.SemanticToken = token_at(package_tokens, 6, 36);
     let env_get -> analysis.SemanticToken = token_at(package_tokens, 7, 33);
     if (io_module is null || stderr_module is null || io_write is null || json_find is null || env_get is null || io_module.token_type != "namespace" || stderr_module.token_type != "namespace" || io_module.modifiers.length() != 1 || io_module.modifiers[0] != "defaultLibrary" || io_write.token_type != "function" || json_find.token_type != "method" || env_get.token_type != "function") {
-        builtin.print("FAIL: standard library package members");
+        print("FAIL: standard library package members");
         return 1;
     }
 
-    builtin.print("PASS: wlls member calls");
+    print("PASS: wlls member calls");
     return 0;
 }

@@ -93,6 +93,7 @@ func __semantic_type(kind -> Int) -> String {
     if (kind == source.SYMBOL_METHOD) { return "method"; }
     if (kind == source.SYMBOL_CONVERSION) { return "keyword"; }
     if (kind == source.SYMBOL_PARAMETER) { return "parameter"; }
+    if (kind == source.SYMBOL_TYPE_PARAMETER) { return "typeParameter"; }
     if (kind == source.SYMBOL_FIELD) { return "property"; }
     if (kind == source.SYMBOL_CLASS) { return "class"; }
     if (kind == source.SYMBOL_STRUCT) { return "struct"; }
@@ -301,6 +302,7 @@ func __token_type_index(token_type -> String) -> Int {
     if (token_type == "operator") { return 15; }
     if (token_type == "annotation") { return 16; }
     if (token_type == "namespace") { return 17; }
+    if (token_type == "typeParameter") { return 18; }
     return 10;
 }
 

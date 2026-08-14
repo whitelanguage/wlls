@@ -1,7 +1,6 @@
 // Test: FRONTEND_DOCUMENT
 // File: tests/test_document.wl
 // Focus: compiler-owned parsing, source spans, and document symbol indexing.
-import "builtin"
 import "../internal/frontend/_pkg.wl" as source
 
 func main() -> Int {
@@ -17,12 +16,12 @@ func main() -> Int {
     let document -> source.FrontendDocument = source.parse_document("memory.wl", source_text);
 
     if (document.source_map is null || document.source_map.line_count() != 8) {
-        builtin.print("FAIL: document source map");
+        print("FAIL: document source map");
         return 1;
     }
 
     if (document.symbols.length() != 3) {
-        builtin.print("FAIL: top-level document symbols");
+        print("FAIL: top-level document symbols");
         return 1;
     }
 
@@ -40,13 +39,13 @@ func main() -> Int {
         limit.span.start.line != 0 ||
         limit.span.start.byte_column != 6 ||
         limit.span.end.byte_column != 11) {
-        builtin.print("FAIL: declaration source span");
+        print("FAIL: declaration source span");
         return 1;
     }
 
     if (add.name != "add" || add.children.length() != 2 ||
         left.name != "left" || right.name != "right") {
-        builtin.print("FAIL: function symbol");
+        print("FAIL: function symbol");
         return 1;
     }
 
@@ -54,10 +53,10 @@ func main() -> Int {
         value.name != "value" ||
         init.name != "init" ||
         get.name != "get") {
-        builtin.print("FAIL: class member symbols");
+        print("FAIL: class member symbols");
         return 1;
     }
 
-    builtin.print("PASS: compiler frontend document");
+    print("PASS: compiler frontend document");
     return 0;
 }

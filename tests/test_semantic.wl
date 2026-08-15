@@ -5,17 +5,17 @@
 import "../internal/frontend/_pkg.wl" as source
 
 func main() -> Int {
-    let source_text -> String =
-        "const BASE -> Int = 2;\n" +
-        "func add(value -> Int) -> Int {\n" +
-        "    let next -> Int = value + BASE;\n" +
+    let source_text: String =
+        "const BASE: Int = 2;\n" +
+        "func add(value: Int) -> Int {\n" +
+        "    let next: Int = value + BASE;\n" +
         "    return next;\n" +
         "}\n";
 
-    let syntax -> source.FrontendDocument = source.parse_document("memory.wl", source_text);
-    let semantics -> source.SemanticDocument = source.analyze_document(syntax);
+    let syntax: source.FrontendDocument = source.parse_document("memory.wl", source_text);
+    let semantics: source.SemanticDocument = source.analyze_document(syntax);
 
-    let value -> source.SymbolDefinition = source.definition_at(semantics, 2, 22);
+    let value: source.SymbolDefinition = source.definition_at(semantics, 2, 20);
     if (value is null ||
         value.name != "value" ||
         value.range.start.line != 1 ||
@@ -24,17 +24,17 @@ func main() -> Int {
         return 1;
     }
 
-    let base -> source.SymbolDefinition = source.definition_at(semantics, 2, 30);
+    let base: source.SymbolDefinition = source.definition_at(semantics, 2, 28);
     if (base is null ||
         base.name != "BASE" ||
         base.range.start.line != 0 ||
         base.range.start.utf16_column != 6 ||
-        source.type_at(semantics, 2, 30) != "Int") {
+        source.type_at(semantics, 2, 28) != "Int") {
         print("FAIL: top-level definition");
         return 1;
     }
 
-    let next -> source.SymbolDefinition = source.definition_at(semantics, 3, 11);
+    let next: source.SymbolDefinition = source.definition_at(semantics, 3, 11);
     if (next is null ||
         next.name != "next" ||
         next.range.start.line != 2 ||
@@ -44,15 +44,15 @@ func main() -> Int {
         return 1;
     }
 
-    let class_text -> String =
+    let class_text: String =
         "class Counter {\n" +
-        "    let value -> Int = 0;\n" +
-        "    method get() -> Int {\n" +
+        "    let value: Int = 0;\n" +
+        "    func get() -> Int {\n" +
         "        return self.value;\n" +
         "    }\n" +
         "}\n";
-    let class_semantics -> source.SemanticDocument = source.analyze_document( source.parse_document("counter.wl", class_text) );
-    let field -> source.SymbolDefinition = source.definition_at(class_semantics, 3, 20);
+    let class_semantics: source.SemanticDocument = source.analyze_document( source.parse_document("counter.wl", class_text) );
+    let field: source.SymbolDefinition = source.definition_at(class_semantics, 3, 20);
     if (field is null ||
         field.name != "value" ||
         field.kind != source.SYMBOL_FIELD ||
@@ -62,14 +62,14 @@ func main() -> Int {
         return 1;
     }
 
-    let empty_semantics -> source.SemanticDocument =
+    let empty_semantics: source.SemanticDocument =
         source.analyze_document(
             source.parse_document(
                 "intrinsic.wl",
                 "@CompilerIntrinsic\nstruct Variant(\n)\n"
             )
         );
-    let variant -> source.SymbolDefinition = null;
+    let variant: source.SymbolDefinition = null;
     if (empty_semantics is !null && empty_semantics.definitions.length() > 0) {
         variant = empty_semantics.definitions[0];
     }
@@ -81,22 +81,22 @@ func main() -> Int {
         return 1;
     }
 
-    let field_init_text -> String =
+    let field_init_text: String =
         "class User {\n" +
-        "    let name -> String;\n" +
-        "    let age -> Int;\n" +
+        "    let name: String;\n" +
+        "    let age: Int;\n" +
         "\n" +
-        "    init(name -> String, age -> Int) {\n" +
+        "    init(name: String, age: Int) {\n" +
         "        self.name = name;\n" +
         "        self.age = age;\n" +
         "    }\n" +
         "}\n";
-    let field_init_semantics -> source.SemanticDocument =
+    let field_init_semantics: source.SemanticDocument =
         source.analyze_document(
             source.parse_document("user.wl", field_init_text)
         );
-    let name_field -> source.SymbolDefinition = source.definition_at(field_init_semantics, 5, 13);
-    let age_field -> source.SymbolDefinition = source.definition_at(field_init_semantics, 6, 13);
+    let name_field: source.SymbolDefinition = source.definition_at(field_init_semantics, 5, 13);
+    let age_field: source.SymbolDefinition = source.definition_at(field_init_semantics, 6, 13);
     if (name_field is null ||
         age_field is null ||
         name_field.kind != source.SYMBOL_FIELD ||

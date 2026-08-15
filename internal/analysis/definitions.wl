@@ -3,10 +3,10 @@ import "../protocol/_pkg.wl" as protocol
 import "../frontend/_pkg.wl" as source
 import "../compiler/_pkg.wl" as compiler
 
-func encode_definition(definition -> source.SymbolDefinition) -> String {
+func encode_definition(definition: source.SymbolDefinition) -> String {
     if (definition is null || definition.range is null) { return "null"; }
-    let range -> compiler.WhitelangExceptions.SourceRange = definition.range;
-    let uri -> String = protocol.path_to_uri(range.file);
+    let range: compiler.WhitelangExceptions.SourceRange = definition.range;
+    let uri: String = protocol.path_to_uri(range.file);
     return
         "{\"uri\":" + protocol.quote(uri) +
         ",\"range\":{\"start\":{\"line\":" + range.start.line +

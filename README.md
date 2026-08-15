@@ -7,6 +7,8 @@ Currently, it supports:
 - syntax diagnostics
 - document symbols
 - go to definition
+- hover information
+- completion and declaration snippets
 - semantic highlighting
 - full-text document synchronization
 

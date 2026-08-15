@@ -4,16 +4,16 @@
 import "../internal/frontend/_pkg.wl" as source
 
 func main() -> Int {
-    let source_text -> String =
-        "const LIMIT -> Int = 4;\n" +
-        "func add(left -> Int, right -> Int) -> Int { return left + right; }\n" +
+    let source_text: String =
+        "const LIMIT: Int = 4;\n" +
+        "func add(left: Int, right: Int) -> Int { return left + right; }\n" +
         "class Counter {\n" +
-        "    let value -> Int = 0;\n" +
-        "    init(value -> Int) -> Void { self.value = value; }\n" +
-        "    method get() -> Int { return self.value; }\n" +
+        "    let value: Int = 0;\n" +
+        "    init(value: Int) { self.value = value; }\n" +
+        "    func get() -> Int { return self.value; }\n" +
         "}\n";
 
-    let document -> source.FrontendDocument = source.parse_document("memory.wl", source_text);
+    let document: source.FrontendDocument = source.parse_document("memory.wl", source_text);
 
     if (document.source_map is null || document.source_map.line_count() != 8) {
         print("FAIL: document source map");
@@ -25,14 +25,14 @@ func main() -> Int {
         return 1;
     }
 
-    let limit -> source.DocumentSymbol = document.symbols[0];
-    let add -> source.DocumentSymbol = document.symbols[1];
-    let counter -> source.DocumentSymbol = document.symbols[2];
-    let left -> source.DocumentSymbol = add.children[0];
-    let right -> source.DocumentSymbol = add.children[1];
-    let value -> source.DocumentSymbol = counter.children[0];
-    let init -> source.DocumentSymbol = counter.children[1];
-    let get -> source.DocumentSymbol = counter.children[2];
+    let limit: source.DocumentSymbol = document.symbols[0];
+    let add: source.DocumentSymbol = document.symbols[1];
+    let counter: source.DocumentSymbol = document.symbols[2];
+    let left: source.DocumentSymbol = add.children[0];
+    let right: source.DocumentSymbol = add.children[1];
+    let value: source.DocumentSymbol = counter.children[0];
+    let init: source.DocumentSymbol = counter.children[1];
+    let get: source.DocumentSymbol = counter.children[2];
 
     if (limit.name != "LIMIT" ||
         limit.kind != source.SYMBOL_CONSTANT ||

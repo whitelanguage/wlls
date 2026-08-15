@@ -5,9 +5,9 @@
 import "../internal/compiler/_pkg.wl" as compiler
 
 func main() -> Int {
-    let text -> String = "a中😀b\nx";
+    let text: String = "a中😀b\nx";
 
-    let after_cjk -> compiler.WhitelangExceptions.SourcePosition = compiler.WhitelangExceptions.source_position(text, 0, 4);
+    let after_cjk: compiler.WhitelangExceptions.SourcePosition = compiler.WhitelangExceptions.source_position(text, 0, 4);
     if (after_cjk.byte_offset != 4 ||
         after_cjk.byte_column != 4 ||
         after_cjk.unicode_column != 2 ||
@@ -16,7 +16,7 @@ func main() -> Int {
         return 1;
     }
 
-    let after_emoji -> compiler.WhitelangExceptions.SourcePosition = compiler.WhitelangExceptions.source_position(text, 0, 8);
+    let after_emoji: compiler.WhitelangExceptions.SourcePosition = compiler.WhitelangExceptions.source_position(text, 0, 8);
     if (after_emoji.byte_offset != 8 ||
         after_emoji.byte_column != 8 ||
         after_emoji.unicode_column != 3 ||
@@ -25,7 +25,7 @@ func main() -> Int {
         return 1;
     }
 
-    let second_line -> compiler.WhitelangExceptions.SourcePosition = compiler.WhitelangExceptions.source_position(text, 1, 1);
+    let second_line: compiler.WhitelangExceptions.SourcePosition = compiler.WhitelangExceptions.source_position(text, 1, 1);
     if (second_line.line != 1 ||
         second_line.byte_column != 1 ||
         second_line.unicode_column != 1 ||
@@ -34,7 +34,7 @@ func main() -> Int {
         return 1;
     }
 
-    let range -> compiler.WhitelangExceptions.SourceRange = compiler.WhitelangExceptions.source_range("memory.wl", text, 0, 1, 7);
+    let range: compiler.WhitelangExceptions.SourceRange = compiler.WhitelangExceptions.source_range("memory.wl", text, 0, 1, 7);
     if (range.start.utf16_column != 1 ||
         range.end.utf16_column != 4 ||
         range.end.byte_column != 8) {
@@ -43,7 +43,7 @@ func main() -> Int {
     }
 
     compiler.WhitelangExceptions.begin_error_collection();
-    let diagnostic_pos -> compiler.WhitelangExceptions.Position = compiler.WhitelangExceptions.Position(
+    let diagnostic_pos: compiler.WhitelangExceptions.Position = compiler.WhitelangExceptions.Position(
             idx=0,
             ln=0,
             col=8,
@@ -54,7 +54,7 @@ func main() -> Int {
         diagnostic_pos,
         "unknown name"
     );
-    let diagnostic -> compiler.WhitelangExceptions.CompilerDiagnostic =
+    let diagnostic: compiler.WhitelangExceptions.CompilerDiagnostic =
         compiler.WhitelangExceptions.STRUCTURED_ERRORS[0];
     compiler.WhitelangExceptions.end_error_collection();
     compiler.WhitelangExceptions.reset_errors();

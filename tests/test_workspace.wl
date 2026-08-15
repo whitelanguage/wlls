@@ -9,9 +9,9 @@ func main() -> Int {
         print("FAIL: UNC workspace path");
         return 1;
     }
-    let state -> workspace.Workspace = workspace.Workspace();
+    let state: workspace.Workspace = workspace.Workspace();
     state.open("memory.wl", 1, "first");
-    let document -> workspace.Document = state.find("memory.wl");
+    let document: workspace.Document = state.find("memory.wl");
     if (document is null || document.version != 1 || document.text != "first") {
         print("FAIL: wlls document open");
         return 1;

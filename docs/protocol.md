@@ -25,13 +25,15 @@ full-text document synchronization
 syntax diagnostics
 document symbols
 go to definition
+hover information
+completion and declaration snippets
 full semantic tokens
 semantic-token refresh after project changes
 ```
 
 Positions use UTF-16 code units, as required by most LSP clients. Incremental
-document changes, semantic-token deltas, completion, hover, references, rename,
-formatting, and request cancellation are not implemented yet.
+document changes, semantic-token deltas, references, rename, formatting, and
+request cancellation are not implemented yet.
 
 ## Starting a session
 
@@ -49,6 +51,8 @@ initialize
 shutdown
 textDocument/documentSymbol
 textDocument/definition
+textDocument/hover
+textDocument/completion
 textDocument/semanticTokens/full
 ```
 
@@ -89,7 +93,7 @@ Diagnostics use LSP ranges and UTF-16 columns. Parsing errors do not prevent
 the server from producing lexer-backed semantic tokens for source which can
 still be classified safely.
 
-## Symbols and definitions
+## Symbols, definitions, and hover
 
 `textDocument/documentSymbol` returns standard `DocumentSymbol` values.
 `kind` uses the numeric LSP `SymbolKind`, and every symbol contains both
@@ -98,6 +102,32 @@ still be classified safely.
 `textDocument/definition` returns standard LSP `Location` values. Definitions
 may point into another project file or into the standard library. An unresolved
 name returns no location rather than a fabricated result.
+
+`textDocument/hover` returns the declaration in its current White Language
+spelling. Function and method parameters use `:`, and callable types use
+`Function(Args) -> Return` or `Method(Args) -> Return`. Inferred declarations
+show the type found by semantic analysis rather than `Auto`.
+
+## Completion
+
+`textDocument/completion` returns top-level symbols from the current document
+and a small set of declaration snippets. Snippets use LSP's snippet insert-text
+format and always produce the current syntax:
+
+```wl
+let value: Int = 0;
+let inferred = 0;
+let explicit: Auto = 0;
+
+func run(value: Int) -> Void {
+}
+
+let callback: Function(Int) -> Int = increment;
+```
+
+Class and interface method snippets use `func`. The legacy `method`,
+`name -> Type`, `Function(Args, Return)`, and `Method(Args, Return)` forms are
+not offered.
 
 ## Semantic tokens
 

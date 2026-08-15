@@ -5,20 +5,20 @@
 import "../internal/frontend/_pkg.wl" as source
 import "../internal/analysis/_pkg.wl" as analysis
 
-func has_token_type(tokens -> Vector(Struct), expected -> String) -> Bool {
-    let i -> Int = 0;
+func has_token_type(tokens: Vector(Struct), expected: String) -> Bool {
+    let i: Int = 0;
     while (i < tokens.length()) {
-        let token -> analysis.SemanticToken = tokens[i];
+        let token: analysis.SemanticToken = tokens[i];
         if (token.token_type == expected) { return true; }
         i += 1;
     }
     return false;
 }
 
-func token_at(tokens -> Vector(Struct), line -> Int, character -> Int) -> analysis.SemanticToken {
-    let i -> Int = 0;
+func token_at(tokens: Vector(Struct), line: Int, character: Int) -> analysis.SemanticToken {
+    let i: Int = 0;
     while (i < tokens.length()) {
-        let token -> analysis.SemanticToken = tokens[i];
+        let token: analysis.SemanticToken = tokens[i];
         if (token.line == line && token.character == character) { return token; }
         i += 1;
     }
@@ -26,24 +26,24 @@ func token_at(tokens -> Vector(Struct), line -> Int, character -> Int) -> analys
 }
 
 func main() -> Int {
-    let path -> String = "kinds.wl";
-    let text -> String =
-        "struct Point(x -> Int)\n" +
+    let path: String = "kinds.wl";
+    let text: String =
+        "struct Point(x: Int)\n" +
         "enum Color { Red, Blue }\n" +
-        "interface Named { method name(prefix -> String) -> String; }\n" +
+        "interface Named { func name(prefix: String) -> String; }\n" +
         "class User with Named {\n" +
-        "    let value -> Int = 0;\n" +
-        "    let wide -> UInt128 = UInt128(0);\n" +
-        "    let values -> Vector(Int) = [];\n" +
-        "    method name(prefix -> String) -> String { return prefix + \"user\"; }\n" +
+        "    let value: Int = 0;\n" +
+        "    let wide: UInt128 = UInt128(0);\n" +
+        "    let values: Vector(Int) = [];\n" +
+        "    func name(prefix: String) -> String { return prefix + \"user\"; }\n" +
         "    type String { return \"user\"; }\n" +
         "}\n";
 
-    let workspace -> source.FrontendWorkspace = source.FrontendWorkspace();
-    let result -> source.FrontendResult = workspace.update(path, 1, text);
-    let tokens -> Vector(Struct) = analysis.semantic_tokens(result, workspace, path);
+    let workspace: source.FrontendWorkspace = source.FrontendWorkspace();
+    let result: source.FrontendResult = workspace.update(path, 1, text);
+    let tokens: Vector(Struct) = analysis.semantic_tokens(result, workspace, path);
 
-    let required -> Vector(String) = [
+    let required: Vector(String) = [
         "struct",
         "enum",
         "enumMember",
@@ -57,7 +57,7 @@ func main() -> Int {
         "string",
         "number"
     ];
-    let i -> Int = 0;
+    let i: Int = 0;
     while (i < required.length()) {
         if (!has_token_type(tokens, required[i])) {
             print("FAIL: missing semantic token type " + required[i]);
@@ -65,14 +65,14 @@ func main() -> Int {
         }
         i += 1;
     }
-    let wide_type -> analysis.SemanticToken = token_at(tokens, 5, 16);
-    let vector_type -> analysis.SemanticToken = token_at(tokens, 6, 18);
+    let wide_type: analysis.SemanticToken = token_at(tokens, 5, 14);
+    let vector_type: analysis.SemanticToken = token_at(tokens, 6, 16);
     if (wide_type is null || vector_type is null || wide_type.token_type != "type" || vector_type.token_type != "type") {
         print("FAIL: named builtin types");
         return 1;
     }
-    let conversion_keyword -> analysis.SemanticToken = token_at(tokens, 8, 4);
-    let conversion_type -> analysis.SemanticToken = token_at(tokens, 8, 9);
+    let conversion_keyword: analysis.SemanticToken = token_at(tokens, 8, 4);
+    let conversion_type: analysis.SemanticToken = token_at(tokens, 8, 9);
     if (conversion_keyword is null || conversion_type is null || conversion_keyword.token_type != "keyword" || conversion_type.token_type != "type") {
         print("FAIL: conversion keyword");
         return 1;

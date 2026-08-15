@@ -4,7 +4,7 @@
 import "../internal/protocol/_pkg.wl" as protocol
 
 func main() -> Int {
-    let header -> protocol.ContentLengthHeader = protocol.parse_content_length("Content-Length: 123");
+    let header: protocol.ContentLengthHeader = protocol.parse_content_length("Content-Length: 123");
     if (!header.matched || !header.valid || header.too_large || header.value != 123) {
         print("FAIL: valid Content-Length");
         return 1;

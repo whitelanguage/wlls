@@ -4,7 +4,7 @@
 import "../internal/protocol/_pkg.wl" as protocol
 
 func main() -> Int {
-    let output -> protocol.ByteBuffer = protocol.ByteBuffer(1);
+    let output: protocol.ByteBuffer = protocol.ByteBuffer(1);
     if (!output.write("tokens=") || !output.write_uint(0) || !output.write_byte(Byte(44)) || !output.write_uint(2147483647) || output.write_uint(-1)) {
         print("FAIL: protocol buffer write");
         return 1;

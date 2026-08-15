@@ -4,8 +4,8 @@
 import "../internal/server/_pkg.wl" as server
 
 func main() -> Int {
-    let service -> server.Server = server.Server();
-    let response -> String = service.handle("{");
+    let service: server.Server = server.Server();
+    let response: String = service.handle("{");
     if (response != "{\"jsonrpc\":\"2.0\",\"id\":null,\"error\":{\"code\":-32700,\"message\":\"Invalid JSON.\"}}") {
         print("FAIL: malformed JSON");
         return 1;
@@ -55,7 +55,7 @@ func main() -> Int {
         return 1;
     }
 
-    response = service.handle("{\"jsonrpc\":\"2.0\",\"method\":\"textDocument/didChange\",\"params\":{\"textDocument\":{\"uri\":\"file:///memory.wl\",\"version\":3},\"contentChanges\":[{\"text\":\"const BASE -> Int = 1; func main() -> Int { return BASE; }\"}]}}");
+    response = service.handle("{\"jsonrpc\":\"2.0\",\"method\":\"textDocument/didChange\",\"params\":{\"textDocument\":{\"uri\":\"file:///memory.wl\",\"version\":3},\"contentChanges\":[{\"text\":\"const BASE: Int = 1; func main() -> Int { return BASE; }\"}]}}");
     if (!response.ends_with("\"diagnostics\":[]}}")) {
         print("FAIL: diagnostic recovery");
         return 1;
@@ -78,10 +78,22 @@ func main() -> Int {
         return 1;
     }
 
-    let refresh_service -> server.Server = server.Server();
+    response = service.handle("{\"jsonrpc\":\"2.0\",\"id\":5,\"method\":\"textDocument/hover\",\"params\":{\"textDocument\":{\"uri\":\"file:///memory.wl\"},\"position\":{\"line\":0,\"character\":51}}}");
+    if (response != "{\"jsonrpc\":\"2.0\",\"id\":5,\"result\":{\"contents\":{\"kind\":\"markdown\",\"value\":\"```whitelang\\nconst BASE: Int\\n```\"}}}") {
+        print("FAIL: hover");
+        return 1;
+    }
+
+    response = service.handle("{\"jsonrpc\":\"2.0\",\"id\":6,\"method\":\"textDocument/completion\",\"params\":{\"textDocument\":{\"uri\":\"file:///memory.wl\"},\"position\":{\"line\":0,\"character\":56}}}");
+    if (!response.starts_with("{\"jsonrpc\":\"2.0\",\"id\":6,\"result\":{\"isIncomplete\":false,\"items\":[{\"label\":\"let\",\"kind\":15,\"insertText\":\"let ${1:name}: ${2:Type} = ${3:value};\"")) {
+        print("FAIL: completion snippets");
+        return 1;
+    }
+
+    let refresh_service: server.Server = server.Server();
     response = refresh_service.handle("{\"jsonrpc\":\"2.0\",\"id\":10,\"method\":\"initialize\",\"params\":{\"capabilities\":{\"workspace\":{\"semanticTokens\":{\"refreshSupport\":true},\"didChangeWatchedFiles\":{\"dynamicRegistration\":true}}}}}");
     refresh_service.handle("{\"jsonrpc\":\"2.0\",\"method\":\"initialized\",\"params\":{}}");
-    let outgoing -> Vector(String) = refresh_service.take_outgoing();
+    let outgoing: Vector(String) = refresh_service.take_outgoing();
     if (outgoing.length() != 1 || !outgoing[0].starts_with("{\"jsonrpc\":\"2.0\",\"id\":1000000,\"method\":\"client/registerCapability\"") || !outgoing[0].ends_with("{\"globPattern\":\"**/*.wl\"}]}}]}}")) {
         print("FAIL: watched file registration");
         return 1;
@@ -102,8 +114,8 @@ func main() -> Int {
         return 1;
     }
 
-    response = service.handle("{\"jsonrpc\":\"2.0\",\"id\":5,\"method\":\"shutdown\",\"params\":null}");
-    if (!service.shutdown_requested || response != "{\"jsonrpc\":\"2.0\",\"id\":5,\"result\":null}") {
+    response = service.handle("{\"jsonrpc\":\"2.0\",\"id\":7,\"method\":\"shutdown\",\"params\":null}");
+    if (!service.shutdown_requested || response != "{\"jsonrpc\":\"2.0\",\"id\":7,\"result\":null}") {
         print("FAIL: shutdown");
         return 1;
     }

@@ -5,11 +5,11 @@
 import "../internal/frontend/_pkg.wl" as source
 
 func main() -> Int {
-    let project -> source.FrontendWorkspace = source.FrontendWorkspace();
+    let project: source.FrontendWorkspace = source.FrontendWorkspace();
     project.update(
         "project/math.wl",
         1,
-        "func add(left -> Int, right -> Int) -> Int { return left + right; }\n"
+        "func add(left: Int, right: Int) -> Int { return left + right; }\n"
     );
 
     project.update(
@@ -18,7 +18,7 @@ func main() -> Int {
         "import add from \"math.wl\"\n" +
         "func main() -> Int { return add(1, 2); }\n"
     );
-    let named -> source.SymbolDefinition = project.definition("project/named.wl", 1, 28);
+    let named: source.SymbolDefinition = project.definition("project/named.wl", 1, 28);
     if (named is null) {
         print("FAIL: named import missing");
         return 1;
@@ -37,7 +37,7 @@ func main() -> Int {
         "import \"math.wl\" as math\n" +
         "func main() -> Int { return math.add(1, 2); }\n"
     );
-    let qualified -> source.SymbolDefinition = project.definition("project/qualified.wl", 1, 33);
+    let qualified: source.SymbolDefinition = project.definition("project/qualified.wl", 1, 33);
     if (qualified is null) {
         print("FAIL: qualified import missing");
         return 1;
@@ -53,7 +53,7 @@ func main() -> Int {
         "import * from \"math.wl\"\n" +
         "func main() -> Int { return add(1, 2); }\n"
     );
-    let star -> source.SymbolDefinition = project.definition("project/star.wl", 1, 28);
+    let star: source.SymbolDefinition = project.definition("project/star.wl", 1, 28);
     if (star is null ||
         star.name != "add" ||
         star.range.file != "project/math.wl") {
@@ -64,7 +64,7 @@ func main() -> Int {
     project.update(
         "project/constants.wl",
         1,
-        "const LIMIT -> Int = 8;\n"
+        "const LIMIT: Int = 8;\n"
     );
     project.update(
         "project/multi_star.wl",
@@ -73,7 +73,7 @@ func main() -> Int {
         "import * from \"constants.wl\"\n" +
         "func main() -> Int { return LIMIT; }\n"
     );
-    let later_star -> source.SymbolDefinition = project.definition("project/multi_star.wl", 2, 28);
+    let later_star: source.SymbolDefinition = project.definition("project/multi_star.wl", 2, 28);
     if (later_star is null ||
         later_star.name != "LIMIT" ||
         later_star.range.file != "project/constants.wl") {
@@ -81,9 +81,9 @@ func main() -> Int {
         return 1;
     }
 
-    let lazy_path -> String = "tests/fixtures/lazy_main.wl";
+    let lazy_path: String = "tests/fixtures/lazy_main.wl";
     project.update(lazy_path, 1, "import answer from \"lazy_dep.wl\"\nfunc main() -> Int { return answer(); }\n");
-    let lazy -> source.SymbolDefinition = project.definition(lazy_path, 1, 29);
+    let lazy: source.SymbolDefinition = project.definition(lazy_path, 1, 29);
     if (lazy is null || lazy.name != "answer" || !lazy.range.file.ends_with("tests/fixtures/lazy_dep.wl")) {
         print("FAIL: unopened relative import");
         return 1;

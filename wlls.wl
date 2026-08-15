@@ -7,13 +7,13 @@ func print_usage() -> Void {
     print("Usage: wlls --stdio");
 }
 
-func main(argc -> Int, ptr argv -> String) -> Int {
+func main(argc: Int, ptr argv: String) -> Int {
     if (argc < 2) {
         print_usage();
         return 1;
     }
 
-    let option -> String = process.argument(argc, argv, 1);
+    let option: String = process.argument(argc, argv, 1);
     if (option == "-h" || option == "--help") {
         print_usage();
         return 0;
@@ -23,7 +23,7 @@ func main(argc -> Int, ptr argv -> String) -> Int {
         return 1;
     }
 
-    let status -> Int = server.run()?;
+    let status: Int = server.run()?;
     catch(err) {
         return 1;
     }

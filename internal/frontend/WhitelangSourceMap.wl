@@ -1,6 +1,6 @@
 // internal/frontend/WhitelangSourceMap.wl
-import "../../vendor/wlc-frontend/WhitelangExceptions.wl"
-import "../../vendor/wlc-frontend/WhitelangLexer.wl"
+import "../../vendor/wlc-frontend/diagnostics.wl" as WhitelangExceptions
+import "../../vendor/wlc-frontend/lexer.wl" as WhitelangLexer
 
 class SourceMap {
     let text: String;

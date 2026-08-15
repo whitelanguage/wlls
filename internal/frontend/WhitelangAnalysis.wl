@@ -1,6 +1,6 @@
 import * from "WhitelangFrontend.wl"
 import * from "WhitelangSemantic.wl"
-import "../../vendor/wlc-frontend/WhitelangExceptions.wl"
+import "../../vendor/wlc-frontend/diagnostics.wl" as WhitelangExceptions
 
 class FrontendResult {
     let syntax: FrontendDocument;

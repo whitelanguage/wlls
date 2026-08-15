@@ -4,8 +4,8 @@ import "sys"
 import * from "WhitelangFrontend.wl"
 import * from "WhitelangSemantic.wl"
 import * from "WhitelangAnalysis.wl"
-import * from "../../vendor/wlc-frontend/WhitelangNodes.wl"
-import "../../vendor/wlc-frontend/WhitelangTokens.wl"
+import * from "../../vendor/wlc-frontend/ast.wl"
+import "../../vendor/wlc-frontend/tokens.wl" as WhitelangTokens
 
 const MAX_INDEXED_SOURCE_SIZE: Int = 67108864;
 

@@ -1,9 +1,9 @@
 // internal/frontend/WhitelangFrontend.wl
-import * from "../../vendor/wlc-frontend/WhitelangNodes.wl"
-import Token from "../../vendor/wlc-frontend/WhitelangTokens.wl"
-import Lexer, new_lexer, get_next_token from "../../vendor/wlc-frontend/WhitelangLexer.wl"
-import Parser, parse from "../../vendor/wlc-frontend/WhitelangParser.wl"
-import "../../vendor/wlc-frontend/WhitelangExceptions.wl"
+import * from "../../vendor/wlc-frontend/ast.wl"
+import Token from "../../vendor/wlc-frontend/tokens.wl"
+import Lexer, new_lexer, get_next_token from "../../vendor/wlc-frontend/lexer.wl"
+import Parser, parse from "../../vendor/wlc-frontend/parser.wl"
+import "../../vendor/wlc-frontend/diagnostics.wl" as WhitelangExceptions
 import SourceMap from "WhitelangSourceMap.wl"
 
 const SYMBOL_FUNCTION: Int = 1;

@@ -42,11 +42,11 @@ jobs:
           recorded="$(sed -n 's/^commit=//p' "$revision_file" | tr -d '\r')"
           latest="$(git -C upstream rev-parse HEAD)"
           files=(
-            src/core/WhitelangExceptions.wl
-            src/core/WhitelangLexer.wl
-            src/core/WhitelangNodes.wl
-            src/core/WhitelangParser.wl
-            src/core/WhitelangTokens.wl
+            src/frontend/diagnostics.wl
+            src/frontend/lexer.wl
+            src/frontend/ast.wl
+            src/frontend/parser.wl
+            src/frontend/tokens.wl
           )
 
           if [[ ! "$recorded" =~ ^[0-9a-f]{40}$ ]]; then

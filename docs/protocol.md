@@ -106,7 +106,7 @@ name returns no location rather than a fabricated result.
 `textDocument/hover` returns the declaration in its current White Language
 spelling. Function and method parameters use `:`, and callable types use
 `Function(Args) -> Return` or `Method(Args) -> Return`. Inferred declarations
-show the type found by semantic analysis rather than `Auto`.
+show the type found by semantic analysis rather than `Auto`. Variadic markers and default values are retained in callable signatures.
 
 ## Completion
 
@@ -122,7 +122,18 @@ let explicit: Auto = 0;
 func run(value: Int) -> Void {
 }
 
+func join(parts: String..., sep: String = "-") -> String {
+}
+
 let callback: Function(Int) -> Int = increment;
+```
+
+The completion list also includes templates for variadic and defaulted
+parameters. Spread calls and named arguments use the same source syntax:
+
+```wl
+let parts: Vector(String) = ["white", "language"];
+let text: String = join(parts..., sep=" ");
 ```
 
 Class and interface method snippets use `func`. The legacy `method`,

@@ -157,6 +157,7 @@ func __is_operator(token_type: Int) -> Bool {
            token_type == compiler.WhitelangTokens.TOK_ASSIGN ||
            token_type == compiler.WhitelangTokens.TOK_COLON ||
            token_type == compiler.WhitelangTokens.TOK_TYPE_ARROW ||
+           token_type == compiler.WhitelangTokens.TOK_ELLIPSIS ||
            token_type == compiler.WhitelangTokens.TOK_EE ||
            token_type == compiler.WhitelangTokens.TOK_NE ||
            token_type == compiler.WhitelangTokens.TOK_GT ||
@@ -264,7 +265,7 @@ func semantic_tokens(result: source.FrontendResult, workspace: source.FrontendWo
             } else if (__is_builtin_type_name(token.value)) {
                 token_type = "type";
                 modifiers.append("defaultLibrary");
-            } else if (token.type == compiler.WhitelangTokens.TOK_TYPE && __is_named_argument(result, token)) {
+            } else if (__is_named_argument(result, token)) {
                 token_type = "parameter";
             } else if (token.type == compiler.WhitelangTokens.TOK_TYPE) {
                 token_type = "keyword";

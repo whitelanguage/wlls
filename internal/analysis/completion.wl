@@ -29,13 +29,15 @@ func __write_completion_item(output: protocol.ByteBuffer, first: Bool, label: St
 }
 
 func __write_snippets(output: protocol.ByteBuffer, seen: Dict) -> Bool {
-    let labels: Vector(String) = ["let", "let inferred", "let Auto", "const", "func", "func declaration", "init", "class", "interface", "struct", "Function type", "Method type"];
+    let labels: Vector(String) = ["let", "let inferred", "let Auto", "const", "func", "func variadic", "func defaults", "func declaration", "init", "class", "interface", "struct", "Function type", "Method type"];
     let inserts: Vector(String) = [
         "let ${1:name}: ${2:Type} = ${3:value};",
         "let ${1:name} = ${2:value};",
         "let ${1:name}: Auto = ${2:value};",
         "const ${1:NAME} = ${2:value};",
         "func ${1:name}(${2}) -> ${3:Void} {\n    ${0}\n}",
+        "func ${1:name}(${2:values}: ${3:Type}...) -> ${4:Void} {\n    ${0}\n}",
+        "func ${1:name}(${2:value}: ${3:Type} = ${4:default}) -> ${5:Void} {\n    ${0}\n}",
         "func ${1:name}(${2}) -> ${3:Void};",
         "init(${1}) {\n    ${0}\n}",
         "class ${1:Name} {\n    ${0}\n}",

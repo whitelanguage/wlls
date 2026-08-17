@@ -248,6 +248,37 @@ func __type_params_text(params: Vector(Struct)) -> String {
     return result + ">";
 }
 
+func __quote_default_string(value: String) -> String {
+    let result: String = "\"";
+    let i: Int = 0;
+    while (i < value.length()) {
+        let ch: Char = value[i];
+        if (ch == '"') { result += "\\\""; }
+        else if (ch == '\\') { result += "\\\\"; }
+        else if (ch == '\n') { result += "\\n"; }
+        else if (ch == '\r') { result += "\\r"; }
+        else if (ch == '\t') { result += "\\t"; }
+        else { result += value.slice(i, i + 1); }
+        i += 1;
+    }
+    return result + "\"";
+}
+
+func __default_value_text(node: Struct) -> String {
+    if (node is null) { return ""; }
+    let base: BaseNode = node;
+    if (base.type == NODE_INT) { let value: IntNode = node; return value.tok.value; }
+    if (base.type == NODE_FLOAT) { let value: FloatNode = node; return value.tok.value; }
+    if (base.type == NODE_STRING) { let value: StringNode = node; return __quote_default_string(value.tok.value); }
+    if (base.type == NODE_CHAR) { let value: CharNode = node; return "Char(" + value.tok.value + ")"; }
+    if (base.type == NODE_BOOL) { let value: BooleanNode = node; if (value.value == 1) { return "true"; } return "false"; }
+    if (base.type == NODE_NULL) { return "null"; }
+    if (base.type == NODE_NULLPTR) { return "nullptr"; }
+    if (base.type == NODE_UNARYOP) { let value: UnaryOpNode = node; return value.op_tok.value + __default_value_text(value.node); }
+    if (base.type == NODE_BINOP) { let value: BinOpNode = node; return "(" + __default_value_text(value.left) + " " + value.op_tok.value + " " + __default_value_text(value.right) + ")"; }
+    return "<expression>";
+}
+
 func __params_text(params: Vector(Struct)) -> String {
     let result: String = "(";
     let i: Int = 0;
@@ -255,6 +286,8 @@ func __params_text(params: Vector(Struct)) -> String {
         let param: ParamNode = params[i];
         if (i > 0) { result += ", "; }
         result += param.name_tok.value + ": " + type_text(param.type_tok);
+        if (param.is_variadic) { result += "..."; }
+        if (param.default_val is !null) { result += " = " + __default_value_text(param.default_val); }
         i += 1;
     }
     return result + ")";
@@ -747,8 +780,14 @@ func __declare_params(document: SemanticDocument, scope: __Scope, params: Vector
         let param: ParamNode = params[i];
         __walk_type(document, scope, param.type_tok);
         let definition: SymbolDefinition = __definition(document, scope, param.name_tok, SYMBOL_PARAMETER);
-        definition.type_name = type_text(param.type_tok);
-        definition.signature = definition.name + ": " + definition.type_name;
+        let declared_type: String = type_text(param.type_tok);
+        definition.type_name = declared_type;
+        definition.signature = definition.name + ": " + declared_type;
+        if (param.is_variadic) {
+            definition.type_name = "Array(" + declared_type + ")";
+            definition.signature += "...";
+        }
+        if (param.default_val is !null) { definition.signature += " = " + __default_value_text(param.default_val); }
         i += 1;
     }
 }

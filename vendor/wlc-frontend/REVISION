@@ -1,2 +1,6 @@
 repository=https://github.com/whitelanguage/white
+<<<<<<< HEAD
 commit=623c6d6b204c00ab5c8bc57aca0453dbca991418
+=======
+commit=da094ef9f0b7d476d80a7b01e936b6bc1093a437
+>>>>>>> c1739db444fc77be3c4647545e1861d934ba0e9a

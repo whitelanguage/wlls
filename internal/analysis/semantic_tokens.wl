@@ -145,6 +145,32 @@ func __is_named_argument(result: source.FrontendResult, token: compiler.Whitelan
     return left >= 0 && right < text.length() && (text[left] == '(' || text[left] == ',') && text[right] == '=';
 }
 
+func __is_callable_label(result: source.FrontendResult, token: compiler.WhitelangTokens.Token) -> Bool {
+    let text: String = result.syntax.source;
+    let start: Int = result.syntax.source_map.line_start(token.line) + token.col;
+    let right: Int = start + token.value.length();
+    while (right < text.length() && __is_space(text[right])) { right += 1; }
+    if (right >= text.length() || text[right] != ':') { return false; }
+    let cursor: Int = start - 1;
+    let depth: Int = 0;
+    while (cursor >= 0) {
+        if (text[cursor] == ')') { depth += 1; }
+        else if (text[cursor] == '(') {
+            if (depth > 0) { depth -= 1; }
+            else {
+                let word_start: Int = cursor - 1;
+                while (word_start >= 0 && __is_space(text[word_start])) { word_start -= 1; }
+                let end: Int = word_start + 1;
+                while (word_start >= 0 && ((text[word_start] >= 'a' && text[word_start] <= 'z') || (text[word_start] >= 'A' && text[word_start] <= 'Z'))) { word_start -= 1; }
+                let name: String = text.slice(word_start + 1, end);
+                return name == "Function" || name == "Method";
+            }
+        }
+        cursor -= 1;
+    }
+    return false;
+}
+
 func __is_operator(token_type: Int) -> Bool {
     return token_type == compiler.WhitelangTokens.TOK_PLUS ||
            token_type == compiler.WhitelangTokens.TOK_SUB ||
@@ -262,9 +288,13 @@ func semantic_tokens(result: source.FrontendResult, workspace: source.FrontendWo
             if (binding is !null) {
                 token_type = __semantic_type(binding.kind);
                 modifiers = __binding_modifiers(binding);
+            } else if (token.value == "Self") {
+                token_type = "type";
             } else if (__is_builtin_type_name(token.value)) {
                 token_type = "type";
                 modifiers.append("defaultLibrary");
+            } else if (__is_callable_label(result, token)) {
+                token_type = "parameter";
             } else if (__is_named_argument(result, token)) {
                 token_type = "parameter";
             } else if (token.type == compiler.WhitelangTokens.TOK_TYPE) {

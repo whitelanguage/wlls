@@ -103,10 +103,16 @@ still be classified safely.
 may point into another project file or into the standard library. An unresolved
 name returns no location rather than a fabricated result.
 
+An import path resolves to the file selected by the compiler's module lookup. A
+package resolves to its `_pkg.wl` entry, while a single-file module resolves to
+the `.wl` file. Named imports resolve to their declaration. In a qualified chain
+such as `pkg.file.symbol`, `pkg` resolves to the package entry, `file` to the
+corresponding import inside that entry, and `symbol` to its declaration.
+
 `textDocument/hover` returns the declaration in its current White Language
 spelling. Function and method parameters use `:`, and callable types use
 `Function(Args) -> Return` or `Method(Args) -> Return`. Inferred declarations
-show the type found by semantic analysis rather than `Auto`. Variadic markers and default values are retained in callable signatures.
+show the type found by semantic analysis rather than `Auto`. Variadic markers and default values are retained in callable signatures. Callable types retain variadic packs and labeled suffix parameters, for example `Function(String..., delimiter: String) -> String`.
 
 ## Completion
 

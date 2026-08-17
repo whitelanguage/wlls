@@ -42,7 +42,8 @@ func main() -> Int {
         "func main() -> String {\n" +
         "    let parts: Vector(String) = [\"white\", \"language\"];\n" +
         "    return join(parts..., sep=\" \");\n" +
-        "}\n";
+        "}\n" +
+        "let callback: Function(String..., delimiter: String) -> String = join;\n";
     let workspace: source.FrontendWorkspace = source.FrontendWorkspace();
     let result: source.FrontendResult = workspace.update("params.wl", 1, text);
     if (!result.valid || result.semantics is null) { print("FAIL: parameter syntax"); return 1; }
@@ -54,10 +55,13 @@ func main() -> Int {
     if (parts is null || parts.type_name != "Array(String)" || parts.signature != "parts: String...") { print("FAIL: variadic parameter type"); return 1; }
     let separator: source.SymbolDefinition = workspace.definition("params.wl", 1, 22);
     if (separator is null || separator.signature != "sep: String = \"-\"") { print("FAIL: default parameter definition"); return 1; }
+    let callback: source.SymbolDefinition = find_top_level(result, "callback");
+    if (callback is null || callback.type_name != "Function(String..., delimiter: String) -> String") { print("FAIL: variadic callable type"); return 1; }
 
     let tokens: Vector(Struct) = analysis.semantic_tokens(result, workspace, "params.wl");
-    if (!has_token(tokens, 0, 23, 3, "operator") || !has_token(tokens, 5, 21, 3, "operator")) { print("FAIL: variadic tokens"); return 1; }
+    if (!has_token(tokens, 0, 23, 3, "operator") || !has_token(tokens, 5, 21, 3, "operator") || !has_token(tokens, 7, 29, 3, "operator")) { print("FAIL: variadic tokens"); return 1; }
     if (!has_token(tokens, 5, 26, 3, "parameter")) { print("FAIL: named argument token"); return 1; }
+    if (!has_token(tokens, 7, 34, 9, "parameter")) { print("FAIL: callable label token"); return 1; }
 
     let completion: String = analysis.encode_completions(result);
     if (!contains_text(completion, "\"label\":\"func variadic\"") || !contains_text(completion, "\"label\":\"func defaults\"")) { print("FAIL: parameter snippets"); return 1; }

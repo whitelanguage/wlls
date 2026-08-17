@@ -238,7 +238,9 @@ struct ReturnNode(
 struct FunctionTypeNode(
     type        : Int,    // NODE_FUNCTION_TYPE
     arg_types   : Vector(Struct),
+    arg_names   : Vector(String),
     return_type : Struct,
+    variadic_param : Int,
     pos         : Position
 )
 
@@ -405,7 +407,9 @@ struct SuperNode(
 struct MethodTypeNode(
     type        : Int,    // NODE_METHOD_TYPE
     arg_types   : Vector(Struct),
+    arg_names   : Vector(String),
     return_type : Struct,
+    variadic_param : Int,
     pos         : Position
 )
 
@@ -501,6 +505,7 @@ struct InterfaceDefNode(
     type     : Int, // NODE_INTERFACE_DEF
     name_tok : Token,
     type_params : Vector(Struct),
+    interfaces : Vector(Struct),
     methods  : Vector(Struct),
     annotations : Vector(Struct),
     pos      : Position

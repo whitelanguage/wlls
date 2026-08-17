@@ -21,6 +21,8 @@ class WorkspaceSource {
     }
 }
 
+struct __MemberSearch(owner: String, source: WorkspaceSource)
+
 func source_dir(path: String) -> String {
     let i: Int = path.length() - 1;
     while (i >= 0) {
@@ -242,15 +244,28 @@ class FrontendWorkspace {
                 j = 0;
                 while (j < statement_count) {
                     let base: BaseNode = block.stmts[j];
+                    let type_name: String = "";
+                    let parent_names: Vector(String) = [];
                     if (base.type == NODE_CLASS_DEF) {
                         let class_node: ClassDefNode = block.stmts[j];
                         if (class_node.parent_tok is !null) {
-                            let class_name: String = class_node.name_tok.value;
-                            self.file_parents.put(source.path + "\n" + class_name, type_text(class_node.parent_tok));
-                            let existing_parent: String = self.parents[class_name];
-                            if (existing_parent is null) { self.parents.put(class_name, type_text(class_node.parent_tok)); }
-                            else { self.parents.put(class_name, ""); }
+                            type_name = class_node.name_tok.value;
+                            parent_names.append(type_text(class_node.parent_tok));
                         }
+                    } else if (base.type == NODE_INTERFACE_DEF) {
+                        let interface_node: InterfaceDefNode = block.stmts[j];
+                        type_name = interface_node.name_tok.value;
+                        let parent_index: Int = 0;
+                        while (interface_node.interfaces is !null && parent_index < interface_node.interfaces.length()) {
+                            parent_names.append(type_text(interface_node.interfaces[parent_index]));
+                            parent_index += 1;
+                        }
+                    }
+                    if (type_name.length() > 0 && parent_names.length() > 0) {
+                        self.file_parents.put(source.path + "\n" + type_name, parent_names);
+                        let existing_parents: Vector(String) = self.parents[type_name];
+                        if (existing_parents is null) { self.parents.put(type_name, parent_names); }
+                        else { self.parents.put(type_name, []); }
                     }
                     j += 1;
                 }
@@ -306,37 +321,44 @@ class FrontendWorkspace {
 
     func __resolve_member(source: WorkspaceSource, owner_type: String, name: String) -> SymbolDefinition {
         if (owner_type.length() == 0) { return null; }
-        let current: String = self.__member_owner(owner_type);
-        let context: WorkspaceSource = source;
+        let pending: Vector(Struct) = [__MemberSearch(self.__member_owner(owner_type), source)];
         let seen: Dict = Dict(8);
-        while (current.length() > 0 && seen[current] is null) {
-            seen.put(current, true);
+        let index: Int = 0;
+        while (index < pending.length()) {
+            let search: __MemberSearch = pending[index];
+            index += 1;
+            let current: String = self.__member_owner(search.owner);
+            let context: WorkspaceSource = search.source;
+            if (current.length() == 0 || context is null) { continue; }
+            let seen_key: String = context.path + "\n" + current;
+            if (seen[seen_key] is !null) { continue; }
+            seen.put(seen_key, true);
             let key: String = self.__member_key(current, name);
             let type_file: String = self.type_files[current];
+            let parents: Vector(String) = null;
             if (type_file is !null && type_file.length() > 0) {
                 let exact: SymbolDefinition = self.file_members[type_file + "\n" + key];
                 if (exact is !null) { return exact; }
-                let parent: String = self.file_parents[type_file + "\n" + current];
+                parents = self.file_parents[type_file + "\n" + current];
                 context = self.find(type_file);
-                if (parent is null || context is null) { break; }
-                current = self.__member_owner(parent);
             } else {
                 let owner: SymbolDefinition = self.__local_type(context, current);
                 if (owner is null) { owner = self.__imported_type(context, current); }
                 if (owner is !null && owner.range is !null) {
                     let exact: SymbolDefinition = self.file_members[owner.range.file + "\n" + key];
                     if (exact is !null) { return exact; }
-                    let parent: String = self.file_parents[owner.range.file + "\n" + current];
+                    parents = self.file_parents[owner.range.file + "\n" + current];
                     context = self.find(owner.range.file);
-                    if (parent is null || context is null) { break; }
-                    current = self.__member_owner(parent);
-                    continue;
+                } else {
+                    let candidate: SymbolDefinition = self.members[key];
+                    if (candidate is !null && candidate.range is !null) { return candidate; }
+                    parents = self.parents[current];
                 }
-                let candidate: SymbolDefinition = self.members[key];
-                if (candidate is !null && candidate.range is !null) { return candidate; }
-                let parent: String = self.parents[current];
-                if (parent is null || parent.length() == 0) { break; }
-                current = self.__member_owner(parent);
+            }
+            let parent_index: Int = 0;
+            while (parents is !null && context is !null && parent_index < parents.length()) {
+                pending.append(__MemberSearch(parents[parent_index], context));
+                parent_index += 1;
             }
         }
         return null;
@@ -427,6 +449,17 @@ class FrontendWorkspace {
         return self.__load_source(self.wl_path + "/std/" + raw_path + ".wl");
     }
 
+    func __module_location(definition: SymbolDefinition) -> SymbolDefinition {
+        if (definition is null || definition.kind != SYMBOL_MODULE || definition.import_path.length() == 0 || definition.range is null) { return definition; }
+        let source: WorkspaceSource = self.find(definition.range.file);
+        if (source is null) { return definition; }
+        let imported: WorkspaceSource = self.__import_source(source.path, definition.import_path);
+        if (imported is null || imported.result is null || !imported.result.valid) { return definition; }
+        let location: SymbolDefinition = SymbolDefinition(definition.name, SYMBOL_MODULE, imported.result.syntax.source_map.range(imported.path, 0, 0, 0));
+        location.import_path = definition.import_path;
+        return location;
+    }
+
     func __resolve_import(source_document: WorkspaceSource, path: String, name: String) -> SymbolDefinition {
         if (path is null || path.length() == 0) { return null; }
         let imported: WorkspaceSource = self.__import_source(source_document.path, path);
@@ -509,10 +542,19 @@ class FrontendWorkspace {
 
         let reference: SymbolReference = reference_at(document.result.semantics, line, utf16_column);
         if (reference is null) {
-            return definition_at(document.result.semantics, line, utf16_column);
+            let definition: SymbolDefinition = definition_at(document.result.semantics, line, utf16_column);
+            if (definition is null) { return null; }
+            if (definition.kind == SYMBOL_IMPORT) {
+                let imported: SymbolDefinition = self.__resolve_import(document, definition.import_path, definition.import_name);
+                if (imported is !null) { return imported; }
+            }
+            if (definition.kind == SYMBOL_MODULE) { return self.__module_location(definition); }
+            return definition;
         }
 
-        return self.resolve_reference(path, reference);
+        let definition: SymbolDefinition = self.resolve_reference(path, reference);
+        if (reference.receiver_index < 0 && definition is !null && definition.kind == SYMBOL_MODULE) { return self.__module_location(definition); }
+        return definition;
     }
 
     func resolve_reference(path: String, reference: SymbolReference) -> SymbolDefinition {

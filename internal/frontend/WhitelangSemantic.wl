@@ -101,23 +101,24 @@ func __register_member(document: SemanticDocument, owner: String, definition: Sy
 
 func __find_member(document: SemanticDocument, owner: String, name: String) -> SymbolDefinition {
     if (owner is null || owner.length() == 0) { return null; }
-    let current: String = owner;
-    while (current.starts_with("ptr ")) { current = current.slice(4, current.length()); }
-    if (current.ends_with("?")) { current = current.slice(0, current.length() - 1); }
-    let generic_start: Int = 0;
-    while (generic_start < current.length() && current[generic_start] != '(') { generic_start += 1; }
-    if (generic_start < current.length()) { current = current.slice(0, generic_start); }
+    let pending: Vector(String) = [owner];
     let seen: Dict = Dict(8);
-    while (current.length() > 0 && seen[current] is null) {
+    let index: Int = 0;
+    while (index < pending.length()) {
+        let current: String = pending[index];
+        index += 1;
+        while (current.starts_with("ptr ")) { current = current.slice(4, current.length()); }
+        if (current.ends_with("?")) { current = current.slice(0, current.length() - 1); }
+        let generic_start: Int = 0;
+        while (generic_start < current.length() && current[generic_start] != '(') { generic_start += 1; }
+        if (generic_start < current.length()) { current = current.slice(0, generic_start); }
+        if (current.length() == 0 || seen[current] is !null) { continue; }
         seen.put(current, true);
         let member: SymbolDefinition = document.members[current + "." + name];
         if (member is !null) { return member; }
-        let parent: String = document.parent_types[current];
-        if (parent is null) { break; }
-        current = parent;
-        generic_start = 0;
-        while (generic_start < current.length() && current[generic_start] != '(') { generic_start += 1; }
-        if (generic_start < current.length()) { current = current.slice(0, generic_start); }
+        let parents: Vector(String) = document.parent_types[current];
+        let i: Int = 0;
+        while (parents is !null && i < parents.length()) { pending.append(parents[i]); i += 1; }
     }
     return null;
 }
@@ -207,7 +208,9 @@ func type_text(node: Struct) -> String {
         let i: Int = 0;
         while (callable.arg_types is !null && i < callable.arg_types.length()) {
             if (i > 0) { result += ", "; }
+            if (callable.arg_names is !null && callable.arg_names[i].length() > 0) { result += callable.arg_names[i] + ": "; }
             result += type_text(callable.arg_types[i]);
+            if (callable.variadic_param == i + 1) { result += "..."; }
             i += 1;
         }
         return result + ") -> " + type_text(callable.return_type);
@@ -218,7 +221,9 @@ func type_text(node: Struct) -> String {
         let i: Int = 0;
         while (callable.arg_types is !null && i < callable.arg_types.length()) {
             if (i > 0) { result += ", "; }
+            if (callable.arg_names is !null && callable.arg_names[i].length() > 0) { result += callable.arg_names[i] + ": "; }
             result += type_text(callable.arg_types[i]);
+            if (callable.variadic_param == i + 1) { result += "..."; }
             i += 1;
         }
         return result + ") -> " + type_text(callable.return_type);
@@ -295,6 +300,27 @@ func __params_text(params: Vector(Struct)) -> String {
 
 func __callable_signature(prefix: String, name: String, type_params: Vector(Struct), params: Vector(Struct), return_type: Struct) -> String {
     return prefix + name + __type_params_text(type_params) + __params_text(params) + " -> " + type_text(return_type);
+}
+
+func __type_list_text(types: Vector(Struct)) -> String {
+    let result: String = "";
+    let i: Int = 0;
+    while (types is !null && i < types.length()) {
+        if (i > 0) { result += ", "; }
+        result += type_text(types[i]);
+        i += 1;
+    }
+    return result;
+}
+
+func __type_names(types: Vector(Struct)) -> Vector(String) {
+    let result: Vector(String) = [];
+    let i: Int = 0;
+    while (types is !null && i < types.length()) {
+        result.append(type_text(types[i]));
+        i += 1;
+    }
+    return result;
 }
 
 func __element_type(type_name: String) -> String {
@@ -833,7 +859,16 @@ func __import_module_token(node: ImportNode) -> Token {
     }
     let end: Int = path.length();
     if (path.ends_with(".wl")) { end -= 3; }
-    return Token(type=WhitelangTokens.TOK_IDENTIFIER, value=path.slice(start, end), line=node.path_tok.line, col=node.path_tok.col);
+    return Token(type=WhitelangTokens.TOK_IDENTIFIER, value=path.slice(start, end), line=node.path_tok.line, col=node.path_tok.col + start + 1);
+}
+
+func __import_path_definition(document: SemanticDocument, node: ImportNode) -> SymbolDefinition {
+    let module_token: Token = __import_module_token(node);
+    let path_token: Token = Token(type=WhitelangTokens.TOK_STR_LIT, value=node.path_tok.value, line=node.path_tok.line, col=node.path_tok.col + 1);
+    let definition: SymbolDefinition = SymbolDefinition(module_token.value, SYMBOL_MODULE, token_span(document.syntax.path, document.syntax.source_map, path_token));
+    definition.import_path = node.path_tok.value;
+    document.definitions.append(definition);
+    return definition;
 }
 
 func __declare_top_level(document: SemanticDocument, scope: __Scope) -> Void {
@@ -896,7 +931,7 @@ func __declare_top_level(document: SemanticDocument, scope: __Scope) -> Void {
             definition.top_level = true;
             definition.type_name = class_node.name_tok.value;
             definition.signature = "class " + definition.name + __type_params_text(class_node.type_params);
-            if (class_node.parent_tok is !null) { document.parent_types.put(class_node.name_tok.value, type_text(class_node.parent_tok)); }
+            if (class_node.parent_tok is !null) { document.parent_types.put(class_node.name_tok.value, [type_text(class_node.parent_tok)]); }
         } else if (base.type == NODE_ENUM_DEF) {
             let enum_node: EnumDefNode = node;
             let kind: Int = SYMBOL_ENUM;
@@ -912,12 +947,22 @@ func __declare_top_level(document: SemanticDocument, scope: __Scope) -> Void {
             definition.top_level = true;
             definition.type_name = interface_node.name_tok.value;
             definition.signature = "interface " + definition.name + __type_params_text(interface_node.type_params);
+            if (interface_node.interfaces is !null && interface_node.interfaces.length() > 0) {
+                definition.signature += " with " + __type_list_text(interface_node.interfaces);
+                document.parent_types.put(interface_node.name_tok.value, __type_names(interface_node.interfaces));
+            }
         } else if (base.type == NODE_IMPORT) {
             let import_node: ImportNode = node;
+            let path_definition: SymbolDefinition = __import_path_definition(document, import_node);
             if (import_node.symbols is null) {
-                let module: SymbolDefinition = __definition(document, scope, __import_module_token(import_node), SYMBOL_MODULE);
+                let module: SymbolDefinition = path_definition;
+                if (import_node.alias_tok is !null) {
+                    module = __definition(document, scope, import_node.alias_tok, SYMBOL_MODULE);
+                    module.import_path = import_node.path_tok.value;
+                } else {
+                    scope.define(module);
+                }
                 module.top_level = true;
-                module.import_path = import_node.path_tok.value;
             } else {
                 let j: Int = 0;
                 while (j < import_node.symbols.length()) {
@@ -1105,6 +1150,11 @@ func __walk_top_level(document: SemanticDocument, scope: __Scope) -> Void {
             let interface_node: InterfaceDefNode = node;
             let interface_scope: __Scope = __Scope(scope);
             __declare_type_params(document, interface_scope, interface_node.type_params);
+            let parent_index: Int = 0;
+            while (interface_node.interfaces is !null && parent_index < interface_node.interfaces.length()) {
+                __walk_type(document, interface_scope, interface_node.interfaces[parent_index]);
+                parent_index += 1;
+            }
             let j: Int = 0;
             let count: Int = 0;
             if (interface_node.methods is !null) {

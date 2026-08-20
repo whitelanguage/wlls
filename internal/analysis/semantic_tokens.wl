@@ -94,6 +94,7 @@ func __semantic_type(kind: Int) -> String {
     if (kind == source.SYMBOL_CONVERSION) { return "keyword"; }
     if (kind == source.SYMBOL_PARAMETER) { return "parameter"; }
     if (kind == source.SYMBOL_TYPE_PARAMETER) { return "typeParameter"; }
+    if (kind == source.SYMBOL_TYPE) { return "type"; }
     if (kind == source.SYMBOL_FIELD) { return "property"; }
     if (kind == source.SYMBOL_CLASS) { return "class"; }
     if (kind == source.SYMBOL_STRUCT) { return "struct"; }

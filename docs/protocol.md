@@ -114,13 +114,25 @@ spelling. Function and method parameters use `:`, and callable types use
 `Function(Args) -> Return` or `Method(Args) -> Return`. Inferred declarations
 show the type found by semantic analysis rather than `Auto`. Variadic markers and default values are retained in callable signatures. Callable types retain variadic packs and labeled suffix parameters, for example `Function(String..., delimiter: String) -> String`.
 
+Named types keep their declared identity in hover output. Transparent aliases
+show both the alias name and its target:
+
+```rs
+type UserID = UInt32
+type IntVector = Vector(Int) // (alias)
+```
+
+References to either form resolve to the `type` declaration. On an alias
+declaration, the target remains a separate definition link, so a client can
+open the alias first and then follow its target.
+
 ## Completion
 
 `textDocument/completion` returns top-level symbols from the current document
 and a small set of declaration snippets. Snippets use LSP's snippet insert-text
 format and always produce the current syntax:
 
-```wl
+```rs
 let value: Int = 0;
 let inferred = 0;
 let explicit: Auto = 0;
@@ -132,12 +144,15 @@ func join(parts: String..., sep: String = "-") -> String {
 }
 
 let callback: Function(Int) -> Int = increment;
+
+type UserID = UInt32;
+type Vector(Int) as IntVector;
 ```
 
 The completion list also includes templates for variadic and defaulted
 parameters. Spread calls and named arguments use the same source syntax:
 
-```wl
+```rs
 let parts: Vector(String) = ["white", "language"];
 let text: String = join(parts..., sep=" ");
 ```
@@ -145,6 +160,8 @@ let text: String = join(parts..., sep=" ");
 Class and interface method snippets use `func`. The legacy `method`,
 `name -> Type`, `Function(Args, Return)`, and `Method(Args, Return)` forms are
 not offered.
+
+Named-type and transparent-alias declarations are also available as snippets.
 
 ## Semantic tokens
 
@@ -171,6 +188,10 @@ decorator     namespace     typeParameter
 Module names and module aliases use `namespace`. A named import uses the token
 type of the symbol it resolves to. Generic parameter declarations and their
 references use `typeParameter`.
+
+The name introduced by either top-level `type` form uses `type` with the
+`declaration` modifier. Type references and class conversion targets use
+`type`; the contextual `type` and alias `as` tokens use `keyword`.
 
 If the client advertises `workspace.semanticTokens.refreshSupport`, `wlls`
 sends `workspace/semanticTokens/refresh` after an indexed document or dependency

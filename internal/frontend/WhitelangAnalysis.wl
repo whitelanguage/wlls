@@ -25,6 +25,7 @@ func check_source(path: String, text: String) -> FrontendResult {
     let semantics: SemanticDocument = null;
     if (valid) {
         semantics = analyze_document(syntax);
+        valid = WhitelangExceptions.GLOBAL_ERROR_COUNT == 0;
     }
     WhitelangExceptions.end_error_collection();
     WhitelangExceptions.reset_errors();

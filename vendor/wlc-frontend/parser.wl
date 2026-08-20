@@ -150,6 +150,12 @@ func parse(p: Parser) -> Struct {
                 let err_pos: Position = Position(idx=0, ln=p.current_tok.line, col=p.current_tok.col, text=p.lexer.text, fn=p.lexer.pos.fn);
                 throw_invalid_syntax(err_pos, "Expected ';' after global variable declaration.");
             }
+        } else if (p.current_tok.type == TOK_TYPE) {
+            if (anns.length() > 0) {
+                let err_pos: Position = Position(idx=0, ln=p.current_tok.line, col=p.current_tok.col, text=p.lexer.text, fn=p.lexer.pos.fn);
+                throw_invalid_syntax(err_pos, "Type declarations cannot have annotations.");
+            }
+            stmt = parse_type_decl(p);
         } else if (p.current_tok.type == TOK_EXTERN) {
             if (anns.length() > 0) { 
                 let err_pos: Position = Position(idx=0, ln=p.current_tok.line, col=p.current_tok.col, text=p.lexer.text, fn=p.lexer.pos.fn);
@@ -168,6 +174,47 @@ func parse(p: Parser) -> Struct {
     }
     
     return BlockNode(type=NODE_BLOCK, stmts=stmts);
+}
+
+func parse_type_decl(p: Parser) -> Struct {
+    let pos: Position = Position(idx=0, ln=p.current_tok.line, col=p.current_tok.col, text=p.lexer.text, fn=p.lexer.pos.fn);
+    parser_advance(p); // skip type
+
+    let name_tok: Token = null;
+    let target_type: Struct = null;
+    let is_alias: Bool = false;
+
+    if (p.current_tok.type == TOK_IDENTIFIER && peek_type(p) == TOK_ASSIGN) {
+        name_tok = p.current_tok;
+        parser_advance(p);
+        parser_advance(p); // skip =
+        target_type = parse_return_type(p);
+    } else {
+        target_type = parse_return_type(p);
+        if (p.current_tok.type != TOK_AS) {
+            let err_pos: Position = Position(idx=0, ln=p.current_tok.line, col=p.current_tok.col, text=p.lexer.text, fn=p.lexer.pos.fn);
+            throw_invalid_syntax(err_pos, "Expected 'as' in type alias declaration.");
+            return null;
+        }
+        parser_advance(p);
+        if (p.current_tok.type != TOK_IDENTIFIER) {
+            let err_pos: Position = Position(idx=0, ln=p.current_tok.line, col=p.current_tok.col, text=p.lexer.text, fn=p.lexer.pos.fn);
+            throw_invalid_syntax(err_pos, "Expected alias name after 'as'.");
+            return null;
+        }
+        name_tok = p.current_tok;
+        is_alias = true;
+        parser_advance(p);
+    }
+
+    if (p.current_tok.type != TOK_SEMICOLON) {
+        let err_pos: Position = Position(idx=0, ln=p.current_tok.line, col=p.current_tok.col, text=p.lexer.text, fn=p.lexer.pos.fn);
+        throw_invalid_syntax(err_pos, "Expected ';' after type declaration.");
+    } else {
+        parser_advance(p);
+    }
+
+    return TypeDeclNode(type=NODE_TYPE_DECL, name_tok=name_tok, target_type=target_type, is_alias=is_alias, pos=pos);
 }
 
 func parser_advance(p: Parser) -> Void {
@@ -688,8 +735,8 @@ func parse_typed_name(p: Parser, allow_inference: Bool) -> Struct {
         let type_pos: Position = Position(idx=0, ln=p.current_tok.line, col=p.current_tok.col, text=p.lexer.text, fn=p.lexer.pos.fn);
         type_node = parse_return_type(p);
         if (!is_ptr && type_node is !null) {
-            let declared_type: BaseNode = type_node;
-            if (declared_type.type == NODE_PTR_TYPE) {
+            let declared_type: Int = node_kind(type_node);
+            if (declared_type == NODE_PTR_TYPE) {
                 throw_invalid_syntax(type_pos, "Place 'ptr' before the declared name; write 'ptr " + name_tok.value + ": Type'.");
             }
         }
@@ -979,8 +1026,8 @@ func postfix_expr(p: Parser) -> Struct {
             let op_tok: Token = p.current_tok;
             parser_advance(p);
             let pos: Position = Position(idx=0, ln=op_tok.line, col=op_tok.col, text=p.lexer.text, fn=p.lexer.pos.fn);
-            let target_base: BaseNode = node;
-            if (target_base.type == NODE_CALL) {
+            let target_base: Int = node_kind(node);
+            if (target_base == NODE_CALL) {
                 let target_call: CallNode = node;
                 target_call.preserve_fallible = true;
             }
@@ -1002,8 +1049,8 @@ func postfix_expr(p: Parser) -> Struct {
             let pos: Position = Position(idx=0, ln=paren_tok.line, col=paren_tok.col, text=p.lexer.text, fn=p.lexer.pos.fn);
 
             let type_args: Vector(Struct) = null;
-            let call_base: BaseNode = node;
-            if (call_base.type == NODE_GENERIC_TYPE) {
+            let call_base: Int = node_kind(node);
+            if (call_base == NODE_GENERIC_TYPE) {
                 let generic: GenericTypeNode = node;
                 type_args = generic.type_args;
             }
@@ -1251,20 +1298,20 @@ func assignment(p: Parser) -> Struct {
         parser_advance(p); // skip '='
         let right: Struct = assignment(p);
         
-        let base: BaseNode = left;
-        if (base.type == NODE_VAR_ACCESS) {
+        let base: Int = node_kind(left);
+        if (base == NODE_VAR_ACCESS) {
             let v_node: VarAccessNode = left;
             let pos: Position = Position(idx=0, ln=op_tok.line, col=op_tok.col, text=p.lexer.text, fn=p.lexer.pos.fn);
             return VarAssignNode(type=NODE_VAR_ASSIGN, name_tok=v_node.name_tok, value=right, pos=pos);
-        } else if (base.type == NODE_FIELD_ACCESS) {
+        } else if (base == NODE_FIELD_ACCESS) {
             let f_node: FieldAccessNode = left;
             let pos: Position = Position(idx=0, ln=op_tok.line, col=op_tok.col, text=p.lexer.text, fn=p.lexer.pos.fn);
             return FieldAssignNode(type=NODE_FIELD_ASSIGN, obj=f_node.obj, field_name=f_node.field_name, value=right, pos=pos);
-        } else if (base.type == NODE_DEREF) {
+        } else if (base == NODE_DEREF) {
             let d_node: DerefNode = left;
             let pos: Position = Position(idx=0, ln=op_tok.line, col=op_tok.col, text=p.lexer.text, fn=p.lexer.pos.fn);
             return PtrAssignNode(type=NODE_PTR_ASSIGN, pointer=d_node, value=right, pos=pos);
-        } else if (base.type == NODE_INDEX_ACCESS) {
+        } else if (base == NODE_INDEX_ACCESS) {
             let idx_node: IndexAccessNode = left;
             let pos: Position = Position(idx=0, ln=op_tok.line, col=op_tok.col, text=p.lexer.text, fn=p.lexer.pos.fn);
             return IndexAssignNode(type=NODE_INDEX_ASSIGN, target=idx_node.target, index_node=idx_node.index_node, value=right, pos=pos);
@@ -1303,20 +1350,20 @@ func assignment(p: Parser) -> Struct {
 
         let bin_node: BinOpNode = BinOpNode(type=NODE_BINOP, left=left, op_tok=bin_tok, right=right, pos=pos);
 
-        let base: BaseNode = left;
+        let base: Int = node_kind(left);
         
         // a += 1
-        if (base.type == NODE_VAR_ACCESS) {
+        if (base == NODE_VAR_ACCESS) {
             let v_node: VarAccessNode = left;
             return VarAssignNode(type=NODE_VAR_ASSIGN, name_tok=v_node.name_tok, value=bin_node, pos=pos);
         } 
         // s.x += 1
-        else if (base.type == NODE_FIELD_ACCESS) {
+        else if (base == NODE_FIELD_ACCESS) {
             let f_node: FieldAccessNode = left;
             return FieldAssignNode(type=NODE_FIELD_ASSIGN, obj=f_node.obj, field_name=f_node.field_name, value=bin_node, pos=pos);
         }
         // (deref p) += 1
-        else if (base.type == NODE_DEREF) {
+        else if (base == NODE_DEREF) {
             let d_node: DerefNode = left;
             return PtrAssignNode(type=NODE_PTR_ASSIGN, pointer=d_node, value=bin_node, pos=pos);
         }
@@ -1380,8 +1427,8 @@ func var_decl_core(p: Parser, is_const: Bool, anns: Vector(Struct), allow_infere
     let tid: TypedIdent = parse_typed_name(p, allow_inference);
 
     if (tid.type_node is !null) {
-        let t_base: BaseNode = tid.type_node;
-        if (t_base.type == NODE_FALLIBLE_TYPE) {
+        let t_base: Int = node_kind(tid.type_node);
+        if (t_base == NODE_FALLIBLE_TYPE) {
             let err_pos: Position = Position(idx=0, ln=tid.name_tok.line, col=tid.name_tok.col, text=p.lexer.text, fn=p.lexer.pos.fn);
             throw_invalid_syntax(err_pos, "Variables cannot be declared with fallible types (?). Did you forget to try unwrap '?' or use a catch block?");
         }
@@ -1427,9 +1474,9 @@ func parse_block_inner(p: Parser) -> Struct {
     let stmts: Vector(Struct) = [];
     while (p.current_tok.type != TOK_RBRACE && p.current_tok.type != TOK_EOF) {
         let stmt: Struct = statement(p);
-        let base: BaseNode = stmt;
+        let base: Int = node_kind(stmt);
         let is_compound: Bool = false;
-        if (base is !null && (base.type == NODE_IF || base.type == NODE_BLOCK || base.type == NODE_WHILE || base.type == NODE_FOR || base.type == NODE_FUNC_DEF || base.type == NODE_CATCH)) {
+        if (base != 0 && (base == NODE_IF || base == NODE_BLOCK || base == NODE_WHILE || base == NODE_FOR || base == NODE_FUNC_DEF || base == NODE_CATCH)) {
             is_compound = true;
         }
 
@@ -1620,17 +1667,17 @@ func statement(p: Parser) -> Struct {
 
 func is_default_param(node: Struct) -> Bool {
     if (node is null) { return false; }
-    let base: BaseNode = node;
-    if (base.type == NODE_INT || base.type == NODE_FLOAT || base.type == NODE_STRING ||
-        base.type == NODE_CHAR || base.type == NODE_BOOL || base.type == NODE_NULL ||
-        base.type == NODE_NULLPTR) {
+    let base: Int = node_kind(node);
+    if (base == NODE_INT || base == NODE_FLOAT || base == NODE_STRING ||
+        base == NODE_CHAR || base == NODE_BOOL || base == NODE_NULL ||
+        base == NODE_NULLPTR) {
         return true;
     }
-    if (base.type == NODE_UNARYOP) {
+    if (base == NODE_UNARYOP) {
         let unary: UnaryOpNode = node;
         return is_default_param(unary.node);
     }
-    if (base.type == NODE_BINOP) {
+    if (base == NODE_BINOP) {
         let binary: BinOpNode = node;
         return is_default_param(binary.left) && is_default_param(binary.right);
     }

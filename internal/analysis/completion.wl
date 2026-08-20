@@ -16,6 +16,7 @@ func __completion_kind(kind: Int) -> Int {
     if (kind == source.SYMBOL_CONSTANT) { return 21; }
     if (kind == source.SYMBOL_STRUCT) { return 22; }
     if (kind == source.SYMBOL_TYPE_PARAMETER) { return 25; }
+    if (kind == source.SYMBOL_TYPE) { return 25; }
     return 6;
 }
 
@@ -40,6 +41,8 @@ func __write_snippets(output: protocol.ByteBuffer, seen: Dict) -> Bool {
         "class",
         "interface",
         "struct",
+        "type named",
+        "type alias",
         "Function type",
         "Method type"];
 
@@ -55,6 +58,8 @@ func __write_snippets(output: protocol.ByteBuffer, seen: Dict) -> Bool {
         "class ${1:Name} {\n    ${0}\n}",
         "interface ${1:Name} {\n    func ${2:name}(${3}) -> ${4:Void};\n}",
         "struct ${1:Name}(${2:field}: ${3:Type})",
+        "type ${1:Name} = ${2:Type};",
+        "type ${1:Type} as ${2:Alias};",
         "Function(${1:Args}) -> ${2:Return}",
         "Method(${1:Args}) -> ${2:Return}"
     ];

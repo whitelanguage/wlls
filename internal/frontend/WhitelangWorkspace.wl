@@ -219,7 +219,7 @@ class FrontendWorkspace {
                 let j: Int = 0;
                 while (j < definitions.length()) {
                     let definition: SymbolDefinition = definitions[j];
-                    if (definition.top_level && (definition.kind == SYMBOL_STRUCT || definition.kind == SYMBOL_CLASS || definition.kind == SYMBOL_INTERFACE || definition.kind == SYMBOL_ENUM || definition.kind == SYMBOL_ERROR)) {
+                    if (definition.top_level && (definition.kind == SYMBOL_STRUCT || definition.kind == SYMBOL_CLASS || definition.kind == SYMBOL_INTERFACE || definition.kind == SYMBOL_ENUM || definition.kind == SYMBOL_ERROR || definition.kind == SYMBOL_TYPE)) {
                         let type_file: String = self.type_files[definition.name];
                         if (type_file is null) { self.type_files.put(definition.name, definition.range.file); }
                         else if (type_file != definition.range.file) { self.type_files.put(definition.name, ""); }
@@ -243,16 +243,16 @@ class FrontendWorkspace {
                 if (block is !null && block.stmts is !null) { statement_count = block.stmts.length(); }
                 j = 0;
                 while (j < statement_count) {
-                    let base: BaseNode = block.stmts[j];
+                    let base: Int = node_kind(block.stmts[j]);
                     let type_name: String = "";
                     let parent_names: Vector(String) = [];
-                    if (base.type == NODE_CLASS_DEF) {
+                    if (base == NODE_CLASS_DEF) {
                         let class_node: ClassDefNode = block.stmts[j];
                         if (class_node.parent_tok is !null) {
                             type_name = class_node.name_tok.value;
                             parent_names.append(type_text(class_node.parent_tok));
                         }
-                    } else if (base.type == NODE_INTERFACE_DEF) {
+                    } else if (base == NODE_INTERFACE_DEF) {
                         let interface_node: InterfaceDefNode = block.stmts[j];
                         type_name = interface_node.name_tok.value;
                         let parent_index: Int = 0;
@@ -277,7 +277,7 @@ class FrontendWorkspace {
     func __local_type(source: WorkspaceSource, type_name: String) -> SymbolDefinition {
         let definition: SymbolDefinition = __top_level_definition(source.result.semantics, type_name);
         if (definition is null) { return null; }
-        if (definition.kind == SYMBOL_STRUCT || definition.kind == SYMBOL_CLASS || definition.kind == SYMBOL_INTERFACE || definition.kind == SYMBOL_ENUM || definition.kind == SYMBOL_ERROR) {
+        if (definition.kind == SYMBOL_STRUCT || definition.kind == SYMBOL_CLASS || definition.kind == SYMBOL_INTERFACE || definition.kind == SYMBOL_ENUM || definition.kind == SYMBOL_ERROR || definition.kind == SYMBOL_TYPE) {
             return definition;
         }
         return null;
@@ -289,8 +289,8 @@ class FrontendWorkspace {
         let count: Int = 0;
         if (block is !null && block.stmts is !null) { count = block.stmts.length(); }
         while (i < count) {
-            let base: BaseNode = block.stmts[i];
-            if (base.type == NODE_IMPORT) {
+            let base: Int = node_kind(block.stmts[i]);
+            if (base == NODE_IMPORT) {
                 let import_node: ImportNode = block.stmts[i];
                 if (import_node.symbols is !null) {
                     let j: Int = 0;
@@ -319,6 +319,24 @@ class FrontendWorkspace {
         return null;
     }
 
+    func __member_type(source: WorkspaceSource, type_name: String) -> String {
+        let current: String = type_name;
+        let context: WorkspaceSource = source;
+        let seen: Dict = Dict(8);
+        while (context is !null && current.length() > 0 && seen[current] is null) {
+            seen.put(current, true);
+            let definition: SymbolDefinition = self.__local_type(context, current);
+            if (definition is null) { definition = self.__imported_type(context, current); }
+            if (definition is null || definition.underlying_type.length() == 0) { break; }
+            current = definition.underlying_type;
+            if (definition.range is !null) {
+                let next_context: WorkspaceSource = self.find(definition.range.file);
+                if (next_context is !null) { context = next_context; }
+            }
+        }
+        return current;
+    }
+
     func __resolve_member(source: WorkspaceSource, owner_type: String, name: String) -> SymbolDefinition {
         if (owner_type.length() == 0) { return null; }
         let pending: Vector(Struct) = [__MemberSearch(self.__member_owner(owner_type), source)];
@@ -330,6 +348,8 @@ class FrontendWorkspace {
             let current: String = self.__member_owner(search.owner);
             let context: WorkspaceSource = search.source;
             if (current.length() == 0 || context is null) { continue; }
+            current = self.__member_type(context, current);
+            current = self.__member_owner(current);
             let seen_key: String = context.path + "\n" + current;
             if (seen[seen_key] is !null) { continue; }
             seen.put(seen_key, true);
@@ -481,8 +501,8 @@ class FrontendWorkspace {
         let count: Int = 0;
         if (block is !null && block.stmts is !null) { count = block.stmts.length(); }
         while (i < count) {
-            let base: BaseNode = block.stmts[i];
-            if (base.type == NODE_IMPORT) {
+            let base: Int = node_kind(block.stmts[i]);
+            if (base == NODE_IMPORT) {
                 let import_node: ImportNode = block.stmts[i];
                 if (import_node.symbols is null) {
                     let module_name: String = __module_name(import_node.path_tok.value);
@@ -505,8 +525,8 @@ class FrontendWorkspace {
         let count: Int = 0;
         if (block is !null && block.stmts is !null) { count = block.stmts.length(); }
         while (i < count) {
-            let base: BaseNode = block.stmts[i];
-            if (base.type == NODE_IMPORT) {
+            let base: Int = node_kind(block.stmts[i]);
+            if (base == NODE_IMPORT) {
                 let import_node: ImportNode = block.stmts[i];
                 if (import_node.symbols is !null) {
                     let j: Int = 0;

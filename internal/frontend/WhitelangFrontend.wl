@@ -23,6 +23,7 @@ const SYMBOL_MODULE: Int = 14;
 const SYMBOL_IMPORT: Int = 15;
 const SYMBOL_PARAMETER: Int = 16;
 const SYMBOL_TYPE_PARAMETER: Int = 17;
+const SYMBOL_TYPE: Int = 18;
 
 struct DocumentSymbol(name: String, kind: Int, span: WhitelangExceptions.SourceRange, children: Vector(Struct))
 
@@ -95,20 +96,20 @@ func index_top_level(path: String, source_map: SourceMap, ast: Struct) -> Vector
     let i: Int = 0;
     while (i < block.stmts.length()) {
         let node: Struct = block.stmts[i];
-        let base: BaseNode = node;
+        let base: Int = node_kind(node);
 
-        if (base.type == NODE_FUNC_DEF) {
+        if (base == NODE_FUNC_DEF) {
             let func_node: FunctionDefNode = node;
             let symbol: DocumentSymbol = make_symbol(path, source_map, func_node.name_tok, SYMBOL_FUNCTION);
             index_type_params(path, source_map, func_node.type_params, symbol.children);
             index_params(path, source_map, func_node.params, symbol.children);
             result.append(symbol);
-        } else if (base.type == NODE_EXTERN_FUNC) {
+        } else if (base == NODE_EXTERN_FUNC) {
             let extern_node: ExternFuncNode = node;
             let symbol: DocumentSymbol = make_symbol(path, source_map, extern_node.name_tok, SYMBOL_FUNCTION);
             index_params(path, source_map, extern_node.params, symbol.children);
             result.append(symbol);
-        } else if (base.type == NODE_EXTERN_BLOCK) {
+        } else if (base == NODE_EXTERN_BLOCK) {
             let extern_block: ExternBlockNode = node;
             if (extern_block.funcs is !null) {
                 let j: Int = 0;
@@ -120,12 +121,12 @@ func index_top_level(path: String, source_map: SourceMap, ast: Struct) -> Vector
                     j += 1;
                 }
             }
-        } else if (base.type == NODE_VAR_DECL) {
+        } else if (base == NODE_VAR_DECL) {
             let var_node: VarDeclareNode = node;
             let kind: Int = SYMBOL_VARIABLE;
             if (var_node.is_const) { kind = SYMBOL_CONSTANT; }
             result.append(make_symbol(path, source_map, var_node.name_tok, kind));
-        } else if (base.type == NODE_STRUCT_DEF) {
+        } else if (base == NODE_STRUCT_DEF) {
             let struct_node: StructDefNode = node;
             let symbol: DocumentSymbol = make_symbol(path, source_map, struct_node.name_tok, SYMBOL_STRUCT);
             index_type_params(path, source_map, struct_node.type_params, symbol.children);
@@ -138,7 +139,7 @@ func index_top_level(path: String, source_map: SourceMap, ast: Struct) -> Vector
                 }
             }
             result.append(symbol);
-        } else if (base.type == NODE_CLASS_DEF) {
+        } else if (base == NODE_CLASS_DEF) {
             let class_node: ClassDefNode = node;
             let symbol: DocumentSymbol = make_symbol(path, source_map, class_node.name_tok, SYMBOL_CLASS);
             index_type_params(path, source_map, class_node.type_params, symbol.children);
@@ -161,7 +162,7 @@ func index_top_level(path: String, source_map: SourceMap, ast: Struct) -> Vector
                 }
             }
             result.append(symbol);
-        } else if (base.type == NODE_ENUM_DEF) {
+        } else if (base == NODE_ENUM_DEF) {
             let enum_node: EnumDefNode = node;
             let enum_kind: Int = SYMBOL_ENUM;
             let field_kind: Int = SYMBOL_ENUM_CASE;
@@ -179,7 +180,7 @@ func index_top_level(path: String, source_map: SourceMap, ast: Struct) -> Vector
                 }
             }
             result.append(symbol);
-        } else if (base.type == NODE_INTERFACE_DEF) {
+        } else if (base == NODE_INTERFACE_DEF) {
             let interface_node: InterfaceDefNode = node;
             let symbol: DocumentSymbol = make_symbol(path, source_map, interface_node.name_tok, SYMBOL_INTERFACE);
             index_type_params(path, source_map, interface_node.type_params, symbol.children);
@@ -191,6 +192,9 @@ func index_top_level(path: String, source_map: SourceMap, ast: Struct) -> Vector
                 }
             }
             result.append(symbol);
+        } else if (base == NODE_TYPE_DECL) {
+            let type_node: TypeDeclNode = node;
+            result.append(make_symbol(path, source_map, type_node.name_tok, SYMBOL_TYPE));
         }
         i += 1;
     }
